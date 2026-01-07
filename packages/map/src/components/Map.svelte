@@ -4,7 +4,7 @@
   import maplibregl from 'maplibre-gl'
   import { Protocol } from 'pmtiles'
   import { onMount } from 'svelte'
-  import { createMapContext } from '../context'
+  import { createMapContext } from '../context.svelte'
   import { createDarkStyle } from '../styles/dark'
   import { createLightStyle } from '../styles/light'
   import 'maplibre-gl/dist/maplibre-gl.css'
@@ -71,13 +71,13 @@
       interactive,
     })
 
-    // Update the context store
-    ctx.map.set(mapInstance)
+    // Update the context
+    ctx.setMap(mapInstance)
 
     // Event handlers
     mapInstance.on('load', () => {
       loaded = true
-      ctx.loaded.set(true)
+      ctx.setLoaded(true)
       onload?.(mapInstance)
     })
 
@@ -113,8 +113,8 @@
     return () => {
       observer.disconnect()
       maplibregl.removeProtocol('pmtiles')
-      ctx.map.set(null)
-      ctx.loaded.set(false)
+      ctx.setMap(null)
+      ctx.setLoaded(false)
       mapInstance.remove()
     }
   })

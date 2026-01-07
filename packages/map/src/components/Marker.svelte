@@ -3,8 +3,7 @@
   import type { MarkerProps, MarkerSize } from '../types'
   import maplibregl from 'maplibre-gl'
   import { onMount } from 'svelte'
-  import { get } from 'svelte/store'
-  import { getMapContext } from '../context'
+  import { getMapContext } from '../context.svelte'
   import { colors } from '../styles/colors'
 
   const {
@@ -20,7 +19,7 @@
     icon,
   }: MarkerProps & { icon?: Snippet } = $props()
 
-  // Get context stores - safe to call during init
+  // Get context - safe to call during init
   const ctx = getMapContext()
 
   let markerElement: HTMLDivElement
@@ -38,8 +37,8 @@
   const sizeConfig = $derived(sizes[size])
 
   onMount(() => {
-    // Get map from store
-    const map = get(ctx.map)
+    // Get map from context (reactive getter)
+    const map = ctx.map
     if (!map || !markerElement)
       return
 

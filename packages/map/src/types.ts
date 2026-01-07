@@ -148,12 +148,17 @@ export interface ClusterLayerProps {
 
 /**
  * Map context type for child components
+ * @deprecated Use MapContextStore from context.ts instead
  */
 export interface MapContext {
   /** Get the MapLibre GL map instance */
   getMap: () => MapLibreMap | null
-  /** Whether the map is loaded and ready */
-  loaded: { current: boolean }
+  /** Check if map is loaded */
+  isLoaded: () => boolean
+  /** Set the map instance (internal use) */
+  setMap: (map: MapLibreMap | null) => void
+  /** Set loaded state (internal use) */
+  setLoaded: (loaded: boolean) => void
 }
 
 export type { LngLatLike, MapLibreMap, StyleSpecification }

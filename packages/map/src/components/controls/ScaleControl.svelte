@@ -2,8 +2,7 @@
   import type { ScaleControlProps } from '../../types'
   import maplibregl from 'maplibre-gl'
   import { onMount } from 'svelte'
-  import { get } from 'svelte/store'
-  import { getMapContext } from '../../context'
+  import { getMapContext } from '../../context.svelte'
 
   const {
     position = 'bottom-left',
@@ -11,14 +10,14 @@
     maxWidth = 100,
   }: ScaleControlProps = $props()
 
-  // Get context stores - safe to call during init
+  // Get context - safe to call during init
   const ctx = getMapContext()
 
   let control: maplibregl.ScaleControl | null = null
 
   onMount(() => {
-    // Get map from store
-    const map = get(ctx.map)
+    // Get map from context (reactive getter)
+    const map = ctx.map
     if (!map)
       return
 
@@ -30,7 +29,7 @@
     map.addControl(control, position)
 
     return () => {
-      const currentMap = get(ctx.map)
+      const currentMap = ctx.map
       if (control && currentMap) {
         currentMap.removeControl(control)
       }

@@ -2,7 +2,7 @@
 export { Map, Marker, NavigationControl, ScaleControl } from './components/index'
 
 // Context (for custom components)
-export { createMapContext, getMapContext, type MapContextStore, setMapContext } from './context'
+export { createMapContext, getMapContext, type MapContextStore } from './context.svelte'
 
 // Styles (for customization)
 export { colors, createDarkStyle, createLightStyle, darkStyle, lightStyle } from './styles/index'
