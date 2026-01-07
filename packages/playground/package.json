@@ -19,6 +19,7 @@
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.562.0",
     "mode-watcher": "^1.1.0",
+    "shadcn-map": "workspace:*",
     "unocss-merge": "^0.7.3"
   },
   "devDependencies": {

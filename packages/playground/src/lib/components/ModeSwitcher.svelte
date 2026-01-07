@@ -3,7 +3,7 @@
   import { toggleMode } from 'mode-watcher'
 </script>
 
-<Button onclick={toggleMode} variant='outline' size='icon' class='transition-none'>
+<Button onclick={toggleMode} variant='outline' size='icon' class='transition-none dark:bg-background'>
   <div
     class='i-ph:sun-duotone opacity-100 h-[1.2rem] w-[1.2rem] scale-100 transition-all duration-200 dark:opacity-0 dark:scale-0'
   ></div>

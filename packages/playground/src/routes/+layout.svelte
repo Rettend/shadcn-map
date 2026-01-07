@@ -12,5 +12,11 @@
 </svelte:head>
 
 <ModeWatcher disableTransitions={false} />
-<ModeSwitcher />
-{@render children()}
+
+<div class='right-4 top-4 fixed z-50'>
+  <ModeSwitcher />
+</div>
+
+<div class='w-dvw overflow-hidden h-dvh'>
+  {@render children()}
+</div>
