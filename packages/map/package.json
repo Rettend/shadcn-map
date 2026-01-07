@@ -1,0 +1,10 @@
+{
+  "name": "shadcn-map",
+  "type": "module",
+  "module": "src/index.ts",
+  "scripts": {
+    "lint": "eslint . --fix",
+    "check": "tsgo --noEmit",
+    "release": "bumpp && bun run build && bun publish"
+  }
+}
