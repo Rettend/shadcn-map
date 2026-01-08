@@ -310,30 +310,140 @@ Same minimal aesthetic, inverted:
 - ✅ Full vector tile control
 - ✅ No API keys, no rate limits
 
-### Setup
+### Licensing (Commercial Use)
 
-1. **Download PMTiles for your region:**
+| Component | License | Commercial? |
+| :-------- | :------ | :---------- |
+| PMTiles format | Public Domain (CC0) | ✅ Free |
+| OSM data | ODbL | ✅ Free with attribution |
+| Protomaps styles | CC0 | ✅ Free |
+| Daily builds download | Free | ✅ Self-host commercially |
+| Hosted API (`api.protomaps.com`) | Sponsor required | ❌ Not for us |
+
+**Key point:** Downloading from `maps.protomaps.com/builds/` and self-hosting is **100% free for commercial use**. Only the hosted API requires sponsorship.
+
+**Required attribution:** `© OpenStreetMap` (already included in our map styles)
+
+---
+
+### Primary Workflow: Protomaps Daily Builds
+
+The simplest approach — use Protomaps' pre-built tiles:
+
+1. **Download & extract your region:**
 
    ```bash
-   # Full world (~70GB) or extract a region
-   npx protomaps extract world.pmtiles hungary.pmtiles --region hungary
-   # Single country: ~100-500MB
+   # Install pmtiles CLI
+   npm install -g pmtiles
+   
+   # Download latest daily build and extract Hungary
+   # Bounding box: [minLon, minLat, maxLon, maxLat]
+   pmtiles extract \
+     https://build.protomaps.com/20260108.pmtiles \
+     hungary.pmtiles \
+     --bbox=16.1,45.7,22.9,48.6
+   
+   # Result: ~200-400MB file for Hungary
    ```
 
-2. **Host on Cloudflare R2 (free):**
-   - Upload `.pmtiles` file
-   - Enable public access
-   - Get URL like `https://tiles.yourdomain.com/hungary.pmtiles`
+2. **Upload to Cloudflare R2:**
 
-3. **Use in your app:**
+   ```bash
+   # Using rclone (recommended for large files)
+   rclone copy hungary.pmtiles r2:your-bucket/tiles/
+   
+   # Or use Cloudflare dashboard for smaller files
+   ```
+
+3. **Serve via Cloudflare Worker** (optional, for custom domain):
+
+   Use the [Protomaps Cloudflare Worker template](https://github.com/protomaps/PMTiles/tree/main/serverless/cloudflare) or serve directly from R2 public URL.
+
+4. **Use in your app:**
 
    ```svelte
-   <Map tiles="https://tiles.yourdomain.com/hungary.pmtiles" />
+   <Map tiles="https://your-r2-bucket.r2.dev/tiles/hungary.pmtiles" />
    ```
+
+### Automated Monthly Updates (GitHub Actions)
+
+```yaml
+# .github/workflows/update-tiles.yml
+name: Update PMTiles
+
+on:
+  schedule:
+    - cron: '0 4 1 * *'  # Monthly on 1st at 4am UTC
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install pmtiles
+        run: npm install -g pmtiles
+
+      - name: Get latest build date
+        id: date
+        run: echo "date=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
+
+      - name: Extract Hungary from daily build
+        run: |
+          pmtiles extract \
+            "https://build.protomaps.com/${{ steps.date.outputs.date }}.pmtiles" \
+            hungary.pmtiles \
+            --bbox=16.1,45.7,22.9,48.6
+
+      - name: Upload to R2
+        run: |
+          # Install and configure rclone for R2
+          # Upload hungary.pmtiles to your bucket
+        env:
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+```
+
+---
+
+### Backup: Build Tiles Yourself
+
+If you need custom layers, different zoom levels, or want full control:
+
+#### Workflow: Geofabrik → Planetiler → R2
+
+1. **Download OSM data from Geofabrik:**
+
+   ```bash
+   wget https://download.geofabrik.de/europe/hungary-latest.osm.pbf
+   ```
+
+2. **Run Planetiler** (requires Java, 8GB+ RAM):
+
+   ```bash
+   java -Xmx8g -jar planetiler.jar \
+     --osm-path=hungary-latest.osm.pbf \
+     --output=hungary.pmtiles \
+     --nodemap-type=array \
+     --storage=mmap
+   ```
+
+3. **Upload to R2** as above.
+
+**Note:** This is the same pipeline Protomaps uses for their daily builds. Only needed if you want:
+
+- Different layer schemas
+- Higher/lower zoom levels
+- Custom processing
+
+---
 
 ### For Development
 
-Use a small local PMTiles file or a free hosted one from protomaps.com demos.
+Use a public demo file for quick testing:
+
+```svelte
+<Map tiles="https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles" />
+```
 
 ---
 
