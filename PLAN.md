@@ -343,17 +343,18 @@ Use a small local PMTiles file or a free hosted one from protomaps.com demos.
 
 **Goal:** Basic map with markers working
 
-- [ ] Set up library package structure with proper exports
-- [ ] Install MapLibre GL + pmtiles
-- [ ] Implement `<Map>` component with PMTiles support
-- [ ] Create dark + light minimal styles
-- [ ] Integrate with mode-watcher for auto theme
-- [ ] Implement context for child components
-- [ ] Create basic `<Marker>` component (default variant)
-- [ ] Add `<NavigationControl>`
-- [ ] Set up playground with hosted PMTiles (Hungary or similar)
+- [x] Set up library package structure with proper exports
+- [x] Install MapLibre GL + pmtiles
+- [x] Implement `<Map>` component with PMTiles support
+- [x] Create dark + light minimal styles
+- [x] Integrate with mode-watcher for auto theme
+- [x] Implement context for child components (using Svelte 5 $state in .svelte.ts)
+- [x] Create basic `<Marker>` component (default variant)
+- [x] Add `<NavigationControl>`
+- [x] Add `<ScaleControl>` (moved from Phase 3)
+- [x] Set up playground with hosted PMTiles
 
-**Deliverable:** Render a dark/light map with markers
+**Deliverable:** Render a dark/light map with markers ✅
 
 ---
 
@@ -361,13 +362,13 @@ Use a small local PMTiles file or a free hosted one from protomaps.com demos.
 
 **Goal:** Full marker system and popups
 
-- [ ] Marker variants (default, primary, destructive, success, warning)
-- [ ] Marker sizes (sm, md, lg)
+- [x] Marker variants (default, primary, destructive, success, warning)
+- [x] Marker sizes (sm, md, lg)
 - [ ] Marker icons (iconify snippet)
-- [ ] Marker pulse animation
-- [ ] Marker labels (hover)
+- [x] Marker pulse animation
+- [x] Marker labels (hover)
 - [ ] `<Popup>` component
-- [ ] Click/select interactions
+- [x] Click/select interactions
 
 **Deliverable:** Interactive map with styled markers and popups
 
@@ -379,7 +380,6 @@ Use a small local PMTiles file or a free hosted one from protomaps.com demos.
 
 - [ ] `<ClusterLayer>` for marker clustering
 - [ ] `<DetailsPanel>` with shadcn Drawer on mobile
-- [ ] `<ScaleControl>`
 - [ ] Mobile responsive behavior
 - [ ] Accessibility (keyboard nav, ARIA)
 
