@@ -24,6 +24,8 @@
     ondragend?: (lngLat: [number, number]) => void
     /** Icon class (Iconify/UnoCSS) */
     icon?: string
+    /** Include marker in auto clustering */
+    clusterable?: boolean
   }
 </script>
 
@@ -45,12 +47,24 @@
     ondragend,
     icon,
     textColor,
+    clusterable = true,
   }: MarkerProps = $props()
 
   const ctx = getMapContext()
 
   let markerElement: HTMLDivElement
   let marker: maplibregl.Marker | null = null
+  let lastLngLat: [number, number] | null = null
+  let lastClusterable: boolean | null = null
+
+  function createMarkerId() {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID()
+    }
+    return `marker-${Math.random().toString(36).slice(2)}`
+  }
+
+  const markerId = createMarkerId()
 
   const sizes: Record<MarkerSize, { width: number, height: number, iconSize: number }> = {
     sm: { width: 24, height: 24, iconSize: 12 },
@@ -95,11 +109,18 @@
       : '',
   )
   const sizeConfig = $derived(sizes[size])
+  // Read clusteredVersion to force re-evaluation when clustered state changes
+  const isClustered = $derived.by(() => {
+    void ctx.clusteredVersion
+    return clusterable && ctx.clusteredMarkerIds.has(markerId)
+  })
 
   onMount(() => {
     const map = ctx.map
     if (!map || !markerElement)
       return
+
+    ctx.registerMarker({ id: markerId, lngLat, clusterable })
 
     marker = new maplibregl.Marker({
       element: markerElement,
@@ -114,13 +135,25 @@
         const pos = marker?.getLngLat()
         if (pos) {
           ondragend?.([pos.lng, pos.lat])
+          ctx.updateMarker(markerId, { lngLat: [pos.lng, pos.lat] })
         }
       })
     }
 
     return () => {
+      ctx.unregisterMarker(markerId)
       marker?.remove()
       marker = null
+    }
+  })
+
+  $effect(() => {
+    const hasLngLatChange = !lastLngLat || lastLngLat[0] !== lngLat[0] || lastLngLat[1] !== lngLat[1]
+    const hasClusterableChange = lastClusterable === null || lastClusterable !== clusterable
+    if (hasLngLatChange || hasClusterableChange) {
+      ctx.updateMarker(markerId, { lngLat, clusterable })
+      lastLngLat = [lngLat[0], lngLat[1]]
+      lastClusterable = clusterable
     }
   })
 
@@ -142,11 +175,13 @@
   style:--marker-width='{sizeConfig.width}px'
   style:--marker-height='{sizeConfig.height}px'
   style:--icon-size='{sizeConfig.iconSize}px'
+  style:display={isClustered ? 'none' : undefined}
   onclick={() => onclick?.()}
   onkeydown={e => e.key === 'Enter' && onclick?.()}
   role='button'
-  tabindex='0'
+  tabindex={isClustered ? -1 : 0}
   aria-label={label || 'Map marker'}
+  aria-hidden={isClustered ? 'true' : undefined}
   data-label={label}
 >
   <div class='marker-inner {markerColorClass} {markerTextClass}'>

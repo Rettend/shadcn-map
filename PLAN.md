@@ -144,7 +144,7 @@ Small popup that appears near the marker.
 
 ### 4. `<DetailsPanel>` — Full-Height Sidebar
 
-For richer content. Slides in from the right (or bottom on mobile).
+For richer content. Slides in from the left (or bottom on mobile).
 
 ```svelte
 <DetailsPanel open={!!selected} onclose={() => selected = null}>
@@ -157,7 +157,7 @@ For richer content. Slides in from the right (or bottom on mobile).
 
 **Behavior:**
 
-- Desktop: Full-height panel on right side, **floating over the map**
+- Desktop: Full-height panel on left side, **floating over the map**
 - Mobile: Drawer from bottom (via bits-ui Drawer)
 - **The map is always full-width/height** — all UI floats on top, nothing squeezes the map
 
@@ -470,7 +470,7 @@ Use a public demo file for quick testing:
 - [x] Marker icons (icon class)
 - [x] Marker pulse animation
 - [x] Marker labels (hover)
-- [ ] `<Popup>` component
+- [x] `<Popup>` component
 - [x] Click/select interactions
 
 **Deliverable:** Interactive map with styled markers and popups
@@ -481,9 +481,9 @@ Use a public demo file for quick testing:
 
 **Goal:** Production-ready features
 
-- [ ] `<ClusterLayer>` for marker clustering
-- [ ] `<DetailsPanel>` with shadcn Drawer on mobile
-- [ ] Mobile responsive behavior
+- [x] `<ClusterLayer>` for marker clustering
+- [x] `<DetailsPanel>` with shadcn Drawer on mobile
+- [x] Mobile responsive behavior
 - [ ] Accessibility (keyboard nav, ARIA)
 
 **Deliverable:** Feature-complete library

@@ -14,8 +14,8 @@ export default defineConfig({
       collections: {
         custom: {
           yuo: () => fs.readFile('./src/lib/assets/yuo.svg', 'utf-8'),
-        }
-      }
+        },
+      },
     }),
     presetAnimations() as any,
     presetShadcn({

@@ -41,6 +41,12 @@
     onzoom?: (zoom: number) => void
     /** Children */
     children?: Snippet
+    /** Automatically cluster registered markers */
+    autoCluster?: boolean
+    /** Cluster radius in pixels for auto clustering */
+    autoClusterRadius?: number
+    /** Max zoom to cluster at for auto clustering */
+    autoClusterMaxZoom?: number
   }
 </script>
 
@@ -51,6 +57,7 @@
   import { createMapContext } from '../context.svelte'
   import { createDarkStyle } from '../styles/dark'
   import { createLightStyle } from '../styles/light'
+  import ClusterLayer from './ClusterLayer.svelte'
   import 'maplibre-gl/dist/maplibre-gl.css'
 
   const {
@@ -73,6 +80,9 @@
     onmove,
     onzoom: onzoomCallback,
     children,
+    autoCluster = false,
+    autoClusterRadius = 50,
+    autoClusterMaxZoom = 14,
   }: MapProps = $props()
 
   let container: HTMLDivElement
@@ -94,8 +104,33 @@
   }
 
   const ctx = createMapContext()
+  const autoClusterPoints = $derived(
+    autoCluster
+      ? Array.from(ctx.markers.values())
+        .filter(marker => marker.clusterable)
+        .map(marker => ({
+          id: marker.id,
+          lngLat: marker.lngLat,
+        }))
+      : [],
+  )
+
+  function handleAutoClusterUnclustered(unclusteredIds: Set<string>) {
+    const clusteredIds = new Set(
+      autoClusterPoints
+        .map(point => String(point.id))
+        .filter(id => !unclusteredIds.has(id)),
+    )
+    ctx.setClusteredMarkers(clusteredIds)
+  }
 
   let loaded = $state(false)
+
+  $effect(() => {
+    if (!autoCluster) {
+      ctx.setClusteredMarkers(new Set())
+    }
+  })
 
   onMount(() => {
     const protocol = new Protocol()
@@ -115,6 +150,7 @@
       touchPitch,
       touchZoomRotate,
       pitchWithRotate,
+      fadeDuration: 0,
     })
 
     ctx.setMap(mapInstance)
@@ -165,6 +201,15 @@
 
 <div bind:this={container} class='shadcn-map {className}'>
   {#if loaded && children}
+    {#if autoCluster}
+      <ClusterLayer
+        points={autoClusterPoints}
+        clusterRadius={autoClusterRadius}
+        clusterMaxZoom={autoClusterMaxZoom}
+        showUnclustered={false}
+        onunclusteredchange={handleAutoClusterUnclustered}
+      />
+    {/if}
     {@render children()}
   {/if}
 </div>

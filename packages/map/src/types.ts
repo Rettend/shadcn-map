@@ -1,7 +1,7 @@
-import type { Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
+import type { GeoJSONSource, MapLayerMouseEvent, Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
 import type { ThemeColorToken } from './theme'
 
-export type { MapLibreMap, StyleSpecification }
+export type { GeoJSONSource, MapLayerMouseEvent, MapLibreMap, StyleSpecification }
 
 /**
  * Position type for map controls
@@ -22,50 +22,6 @@ export type MarkerColor = ThemeColorToken
  * Marker size options
  */
 export type MarkerSize = 'sm' | 'md' | 'lg'
-
-/**
- * Popup component props
- */
-export interface PopupProps {
-  /** Popup position [lng, lat] */
-  lngLat: [number, number]
-  /** Whether popup is visible */
-  open?: boolean
-  /** Close callback */
-  onclose?: () => void
-  /** Additional CSS classes */
-  class?: string
-  /** Offset from anchor point */
-  offset?: number | [number, number]
-}
-
-/**
- * Point data for cluster layer
- */
-export interface ClusterPoint {
-  /** Unique identifier */
-  id: string | number
-  /** Position [lng, lat] */
-  lngLat: [number, number]
-  /** Additional properties */
-  properties?: Record<string, unknown>
-}
-
-/**
- * Cluster layer props
- */
-export interface ClusterLayerProps {
-  /** Array of points to cluster */
-  points: ClusterPoint[]
-  /** Click callback for individual points */
-  onclick?: (point: ClusterPoint) => void
-  /** Click callback for clusters */
-  onclusterclick?: (clusterId: number, zoom: number) => void
-  /** Cluster radius in pixels */
-  clusterRadius?: number
-  /** Max zoom to cluster at */
-  clusterMaxZoom?: number
-}
 
 /**
  * Map context type for child components
