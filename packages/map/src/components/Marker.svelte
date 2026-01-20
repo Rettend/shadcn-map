@@ -19,30 +19,25 @@
     icon,
   }: MarkerProps & { icon?: Snippet } = $props()
 
-  // Get context - safe to call during init
   const ctx = getMapContext()
 
   let markerElement: HTMLDivElement
   let marker: maplibregl.Marker | null = null
 
-  // Size mappings
   const sizes: Record<MarkerSize, { width: number, height: number, iconSize: number }> = {
     sm: { width: 24, height: 24, iconSize: 12 },
     md: { width: 32, height: 32, iconSize: 16 },
     lg: { width: 44, height: 44, iconSize: 20 },
   }
 
-  // Get variant colors
   const variantColors = $derived(colors.marker[variant])
   const sizeConfig = $derived(sizes[size])
 
   onMount(() => {
-    // Get map from context (reactive getter)
     const map = ctx.map
     if (!map || !markerElement)
       return
 
-    // Create marker
     marker = new maplibregl.Marker({
       element: markerElement,
       draggable,
@@ -51,7 +46,6 @@
       .setLngLat(lngLat)
       .addTo(map)
 
-    // Handle drag end
     if (draggable) {
       marker.on('dragend', () => {
         const pos = marker?.getLngLat()
@@ -67,7 +61,6 @@
     }
   })
 
-  // Update position when lngLat changes
   $effect(() => {
     if (marker && lngLat) {
       marker.setLngLat(lngLat)
@@ -156,7 +149,6 @@
     justify-content: center;
   }
 
-  /* Pulse animation for selected/active state */
   .pulse .marker-inner {
     animation: pulse 2s ease-in-out infinite;
   }
@@ -170,7 +162,6 @@
     }
   }
 
-  /* Label on hover */
   .has-label::after {
     content: attr(data-label);
     position: absolute;
@@ -193,7 +184,6 @@
     opacity: 1;
   }
 
-  /* Dark mode label adjustment */
   :global(.dark) .has-label::after {
     background: hsl(240 5.9% 90%);
     color: hsl(240 10% 3.9%);

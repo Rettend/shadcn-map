@@ -1,7 +1,7 @@
 <script lang='ts'>
   import { Map, Marker, NavigationControl, ScaleControl } from 'shadcn-map'
 
-  // Demo marker locations (Budapest area)
+  // Demo marker locations
   const markers = [
     { id: 1, lngLat: [19.0402, 47.4979] as [number, number], name: 'Parliament', variant: 'primary' as const },
     { id: 2, lngLat: [19.0514, 47.4925] as [number, number], name: 'Chain Bridge', variant: 'default' as const },

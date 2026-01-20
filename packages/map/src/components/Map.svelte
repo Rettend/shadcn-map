@@ -29,14 +29,12 @@
 
   let container: HTMLDivElement
 
-  // Detect dark mode from mode-watcher
   function getIsDarkMode(): boolean {
     if (typeof document === 'undefined')
       return true
     return document.documentElement.classList.contains('dark')
   }
 
-  // Get the appropriate style based on mode
   function getStyle() {
     if (typeof style === 'object') {
       return style
@@ -47,18 +45,14 @@
     return mode === 'dark' ? createDarkStyle(tiles) : createLightStyle(tiles)
   }
 
-  // Create context with stores - children can subscribe to these
   const ctx = createMapContext()
 
-  // Track loaded state locally for template
   let loaded = $state(false)
 
   onMount(() => {
-    // Register PMTiles protocol
     const protocol = new Protocol()
     maplibregl.addProtocol('pmtiles', protocol.tile)
 
-    // Create map instance
     const mapInstance = new maplibregl.Map({
       container,
       style: getStyle(),
@@ -71,10 +65,8 @@
       interactive,
     })
 
-    // Update the context
     ctx.setMap(mapInstance)
 
-    // Event handlers
     mapInstance.on('load', () => {
       loaded = true
       ctx.setLoaded(true)
@@ -100,7 +92,6 @@
       onzoomCallback?.(mapInstance.getZoom())
     })
 
-    // Watch for theme changes
     const observer = new MutationObserver(() => {
       mapInstance.setStyle(getStyle())
     })
@@ -137,7 +128,6 @@
     outline: none;
   }
 
-  /* Style the attribution */
   .shadcn-map :global(.maplibregl-ctrl-attrib) {
     font-size: 10px;
     background: transparent;

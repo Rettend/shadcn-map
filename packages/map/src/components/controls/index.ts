@@ -1,2 +1,4 @@
 export { default as NavigationControl } from './NavigationControl.svelte'
+export type { NavigationControlProps } from './NavigationControl.svelte'
 export { default as ScaleControl } from './ScaleControl.svelte'
+export type { ScaleControlProps } from './ScaleControl.svelte'

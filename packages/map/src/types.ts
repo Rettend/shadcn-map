@@ -95,30 +95,6 @@ export interface PopupProps {
 }
 
 /**
- * Navigation control props
- */
-export interface NavigationControlProps {
-  /** Control position on map */
-  position?: ControlPosition
-  /** Show compass */
-  showCompass?: boolean
-  /** Show zoom buttons */
-  showZoom?: boolean
-}
-
-/**
- * Scale control props
- */
-export interface ScaleControlProps {
-  /** Control position on map */
-  position?: ControlPosition
-  /** Unit of measurement */
-  unit?: 'imperial' | 'metric' | 'nautical'
-  /** Maximum width in pixels */
-  maxWidth?: number
-}
-
-/**
  * Point data for cluster layer
  */
 export interface ClusterPoint {

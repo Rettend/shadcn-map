@@ -1,13 +1,10 @@
-// Components
-export { Map, Marker, NavigationControl, ScaleControl } from './components/index'
+export type { NavigationControlProps, ScaleControlProps } from './components'
+export { Map, Marker, NavigationControl, ScaleControl } from './components'
 
-// Context (for custom components)
 export { createMapContext, getMapContext, type MapContextStore } from './context.svelte'
 
-// Styles (for customization)
-export { colors, createDarkStyle, createLightStyle, darkStyle, lightStyle } from './styles/index'
+export { colors, createDarkStyle, createLightStyle, darkStyle, lightStyle } from './styles'
 
-// Types
 export type {
   ClusterLayerProps,
   ClusterPoint,
@@ -19,9 +16,7 @@ export type {
   MarkerProps,
   MarkerSize,
   MarkerVariant,
-  NavigationControlProps,
   PopupProps,
-  ScaleControlProps,
   StyleMode,
   StyleSpecification,
 } from './types'
