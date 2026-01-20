@@ -1,14 +1,41 @@
+<script lang='ts' module>
+  import type { MarkerColor, MarkerSize } from '../types'
+
+  export interface MarkerProps {
+    /** Marker position [lng, lat] */
+    lngLat: [number, number]
+    /** Theme token or UnoCSS color classes */
+    color?: MarkerColor | string
+    /** Optional text/icon class when using class colors */
+    textColor?: string
+    /** Size */
+    size?: MarkerSize
+    /** Show pulse animation */
+    pulse?: boolean
+    /** Label shown on hover */
+    label?: string
+    /** Allow dragging */
+    draggable?: boolean
+    /** Additional CSS classes */
+    class?: string
+    /** Click callback */
+    onclick?: () => void
+    /** Drag end callback */
+    ondragend?: (lngLat: [number, number]) => void
+    /** Icon class (Iconify/UnoCSS) */
+    icon?: string
+  }
+</script>
+
 <script lang='ts'>
-  import type { Snippet } from 'svelte'
-  import type { MarkerProps, MarkerSize } from '../types'
   import maplibregl from 'maplibre-gl'
   import { onMount } from 'svelte'
   import { getMapContext } from '../context.svelte'
-  import { colors } from '../styles/colors'
+  import { themeColorTokens } from '../theme'
 
   const {
     lngLat,
-    variant = 'default',
+    color = 'primary',
     size = 'md',
     pulse = false,
     label,
@@ -17,7 +44,8 @@
     onclick,
     ondragend,
     icon,
-  }: MarkerProps & { icon?: Snippet } = $props()
+    textColor,
+  }: MarkerProps = $props()
 
   const ctx = getMapContext()
 
@@ -30,7 +58,42 @@
     lg: { width: 44, height: 44, iconSize: 20 },
   }
 
-  const variantColors = $derived(colors.marker[variant])
+  const colorForegroundMap: Partial<Record<MarkerColor, MarkerColor>> = {
+    'background': 'foreground',
+    'foreground': 'background',
+    'card': 'card-foreground',
+    'card-foreground': 'card',
+    'popover': 'popover-foreground',
+    'popover-foreground': 'popover',
+    'primary': 'primary-foreground',
+    'primary-foreground': 'primary',
+    'secondary': 'secondary-foreground',
+    'secondary-foreground': 'secondary',
+    'muted': 'muted-foreground',
+    'muted-foreground': 'muted',
+    'accent': 'accent-foreground',
+    'accent-foreground': 'accent',
+    'destructive': 'destructive-foreground',
+    'destructive-foreground': 'destructive',
+    'sidebar': 'sidebar-foreground',
+    'sidebar-foreground': 'sidebar',
+    'sidebar-primary': 'sidebar-primary-foreground',
+    'sidebar-primary-foreground': 'sidebar-primary',
+    'sidebar-accent': 'sidebar-accent-foreground',
+    'sidebar-accent-foreground': 'sidebar-accent',
+  }
+
+  const isThemeColor = $derived(themeColorTokens.includes(color as MarkerColor))
+  const resolvedThemeColor = $derived(isThemeColor ? (color as MarkerColor) : 'primary')
+  const markerColorVar = $derived(`var(--${resolvedThemeColor})`)
+  const markerTextVar = $derived(`var(--${colorForegroundMap[resolvedThemeColor] ?? 'foreground'})`)
+  const markerColorClass = $derived(isThemeColor ? '' : (color || ''))
+  const hasTextClass = $derived(!isThemeColor && /\btext-/.test(String(color)))
+  const markerTextClass = $derived(
+    !isThemeColor
+      ? (textColor ?? (hasTextClass ? '' : 'text-white'))
+      : '',
+  )
   const sizeConfig = $derived(sizes[size])
 
   onMount(() => {
@@ -70,12 +133,12 @@
 
 <div
   bind:this={markerElement}
-  class='shadcn-marker {variant} {size} {className}'
+  class='shadcn-marker {size} {className}'
   class:pulse
   class:has-label={!!label}
-  style:--marker-bg={variantColors.bg}
-  style:--marker-border={variantColors.border}
-  style:--marker-text={variantColors.text}
+  data-color-mode={isThemeColor ? 'theme' : 'class'}
+  style:--marker-color={isThemeColor ? markerColorVar : 'currentColor'}
+  style:--marker-text={isThemeColor ? markerTextVar : undefined}
   style:--marker-width='{sizeConfig.width}px'
   style:--marker-height='{sizeConfig.height}px'
   style:--icon-size='{sizeConfig.iconSize}px'
@@ -86,11 +149,9 @@
   aria-label={label || 'Map marker'}
   data-label={label}
 >
-  <div class='marker-inner'>
+  <div class='marker-inner {markerColorClass} {markerTextClass}'>
     {#if icon}
-      <div class='marker-icon'>
-        {@render icon()}
-      </div>
+      <span class='marker-icon {icon}' aria-hidden='true'></span>
     {:else}
       <div class='marker-dot'></div>
     {/if}
@@ -102,7 +163,7 @@
     width: var(--marker-width);
     height: var(--marker-height);
     cursor: pointer;
-    position: relative;
+    position: absolute;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -113,21 +174,34 @@
   }
 
   .shadcn-marker:focus-visible {
-    outline: 2px solid var(--marker-bg);
+    outline: 2px solid oklch(var(--marker-color));
     outline-offset: 2px;
   }
 
   .marker-inner {
     width: 100%;
     height: 100%;
-    background: var(--marker-bg);
-    border: 2px solid var(--marker-border);
+    border: 2px solid transparent;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     transition: box-shadow 0.15s ease;
+  }
+
+  .shadcn-marker[data-color-mode='theme'] .marker-inner {
+    background: oklch(var(--marker-color));
+    color: oklch(var(--marker-text));
+    border-color: oklch(var(--border));
+  }
+
+  .shadcn-marker[data-color-mode='class'] .marker-inner {
+    border-color: rgba(0, 0, 0, 0.25);
+  }
+
+  :global(.dark) .shadcn-marker[data-color-mode='class'] .marker-inner {
+    border-color: rgba(255, 255, 255, 0.25);
   }
 
   .shadcn-marker:hover .marker-inner {
@@ -137,13 +211,13 @@
   .marker-dot {
     width: 6px;
     height: 6px;
-    background: var(--marker-text);
+    background: currentColor;
     border-radius: 50%;
   }
 
   .marker-icon {
     font-size: var(--icon-size);
-    color: var(--marker-text);
+    color: currentColor;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -155,7 +229,7 @@
 
   @keyframes pulse {
     0%, 100% {
-      box-shadow: 0 0 0 0 color-mix(in srgb, var(--marker-bg) 50%, transparent);
+      box-shadow: 0 0 0 0 color-mix(in oklch, oklch(var(--marker-color)) 50%, transparent);
     }
     50% {
       box-shadow: 0 0 0 10px transparent;

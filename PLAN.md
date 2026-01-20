@@ -100,36 +100,29 @@ The foundation. Renders MapLibre GL and provides context to children.
 
 ### 2. `<Marker>` — Custom Pins
 
-Styled markers with variants, icons, and animations.
+Styled markers with theme colors, icons, and animations.
 
 ```svelte
 <Marker
   lngLat={[-74.006, 40.7128]}
-  variant="primary"
+  color="primary"
   size="md"
   pulse
   label="HQ"
+  icon="i-ph-building"
   onclick={() => selected = marker}
->
-  {#snippet icon()}
-    <span class="i-ph-building" />
-  {/snippet}
-</Marker>
+/>
 ```
 
-**Variants:**
+**Colors:**
 
-- `default` — Zinc/neutral
-- `primary` — Blue accent
-- `destructive` — Red
-- `success` — Green
-- `warning` — Yellow/amber
+Use any shadcn theme token like `primary`, `accent`, `chart-1`, `sidebar-accent`, etc.
 
 **Sizes:** `sm`, `md`, `lg`
 
 **Features:**
 
-- Iconify icons via snippet
+- Iconify/UnoCSS icons via class string
 - Pulse animation for selected/active
 - Label on hover
 - Draggable mode
@@ -472,9 +465,9 @@ Use a public demo file for quick testing:
 
 **Goal:** Full marker system and popups
 
-- [x] Marker variants (default, primary, destructive, success, warning)
+- [x] Marker colors (shadcn theme tokens)
 - [x] Marker sizes (sm, md, lg)
-- [ ] Marker icons (iconify snippet)
+- [x] Marker icons (icon class)
 - [x] Marker pulse animation
 - [x] Marker labels (hover)
 - [ ] `<Popup>` component
@@ -561,17 +554,13 @@ setMapContext({ getMap: () => map, loaded: { current: loaded } });
 const { getMap, loaded } = getMapContext();
 ```
 
-### Why Iconify Snippets?
+### Why Iconify Classes?
 
-Your playground already uses iconify. Instead of a weird icon prop API:
+Your playground already uses Iconify via UnoCSS. The simplest API is an icon
+class string:
 
 ```svelte
-<!-- Clean snippet approach -->
-<Marker lngLat={pos}>
-  {#snippet icon()}
-    <span class="i-ph-coffee" />
-  {/snippet}
-</Marker>
+<Marker lngLat={pos} icon="i-ph-coffee" />
 ```
 
 ---

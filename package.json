@@ -6,6 +6,7 @@
   "module": "index.ts",
   "scripts": {
     "dev": "cd packages/playground && bun run dev",
+    "package": "cd packages/map && bun run build",
     "lint": "eslint . --fix",
     "check": "cd packages/map && bun run check",
     "update": "taze latest -wr",

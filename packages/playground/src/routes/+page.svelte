@@ -1,22 +1,26 @@
 <script lang='ts'>
+  import type { MarkerProps } from 'shadcn-map'
   import { Map, Marker, NavigationControl, ScaleControl } from 'shadcn-map'
+
+  type Marker = MarkerProps & { id: number, name: string }
 
   // Demo marker locations
   const markers = [
-    { id: 1, lngLat: [19.0402, 47.4979] as [number, number], name: 'Parliament', variant: 'primary' as const },
-    { id: 2, lngLat: [19.0514, 47.4925] as [number, number], name: 'Chain Bridge', variant: 'default' as const },
-    { id: 3, lngLat: [19.0344, 47.5025] as [number, number], name: 'Buda Castle', variant: 'success' as const },
-    { id: 4, lngLat: [19.0621, 47.5005] as [number, number], name: 'Heroes Square', variant: 'warning' as const },
-    { id: 5, lngLat: [19.0818, 47.4734] as [number, number], name: 'Airport', variant: 'destructive' as const },
-  ]
+    { id: 1, lngLat: [19.0402, 47.4949], name: 'Parliament', color: 'bg-violet-500 dark:bg-violet-600', icon: 'i-ph:building-bold' },
+    { id: 2, lngLat: [19.0514, 47.4925], name: 'Chain Bridge', color: 'bg-sky-500 dark:bg-sky-600', icon: 'i-ph:bridge-bold' },
+    { id: 3, lngLat: [19.0344, 47.5025], name: 'Buda Castle', color: 'bg-green-500 dark:bg-green-600', icon: 'i-ph:castle-turret-bold' },
+    { id: 4, lngLat: [19.0621, 47.5005], name: 'Heroes Square', color: 'bg-orange-500 dark:bg-orange-600', icon: 'i-ph:park-bold' },
+    { id: 5, lngLat: [19.0818, 47.4734], name: 'Airport', color: 'bg-rose-500 dark:bg-rose-600', icon: 'i-ph:airplane-bold' },
+    { id: 6, lngLat: [19.0818, 47.4734], name: 'Custom', color: 'bg-blue-800 dark:bg-blue-900', icon: 'i-custom:yuo' },
+  ] satisfies Marker[]
 
-  let selected = $state<typeof markers[0] | null>(null)
+  let selected = $state<Marker | null>(null)
 
   function handleMapClick() {
     selected = null
   }
 
-  function handleMarkerClick(marker: typeof markers[0]) {
+  function handleMarkerClick(marker: Marker) {
     selected = marker
   }
 </script>
@@ -31,7 +35,8 @@
     {#each markers as marker (marker.id)}
       <Marker
         lngLat={marker.lngLat}
-        variant={marker.variant}
+        color={marker.color}
+        icon={marker.icon}
         label={marker.name}
         pulse={selected?.id === marker.id}
         onclick={() => handleMarkerClick(marker)}
