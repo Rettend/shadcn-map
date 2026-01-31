@@ -6,6 +6,8 @@
   "module": "index.ts",
   "scripts": {
     "dev": "cd packages/playground && bun run dev",
+    "build": "cd packages/playground && bun run build",
+    "preview": "cd packages/playground && bun run preview",
     "package": "cd packages/map && bun run build",
     "lint": "eslint . --fix",
     "check": "cd packages/map && bun run check",

@@ -7,6 +7,7 @@ export interface MarkerRegistration {
   id: string
   lngLat: [number, number]
   clusterable: boolean
+  size?: 'sm' | 'md' | 'lg'
 }
 
 export interface MapContextStore {
@@ -15,12 +16,14 @@ export interface MapContextStore {
   readonly markers: Map<string, MarkerRegistration>
   readonly clusteredMarkerIds: Set<string>
   readonly clusteredVersion: number
+  readonly activePopupMarkerId: string | null
   setMap: (map: maplibregl.Map | null) => void
   setLoaded: (loaded: boolean) => void
   registerMarker: (registration: MarkerRegistration) => void
   updateMarker: (id: string, updates: Partial<MarkerRegistration>) => void
   unregisterMarker: (id: string) => void
   setClusteredMarkers: (ids: Set<string>) => void
+  setActivePopupMarker: (id: string | null) => void
 }
 
 export function createMapContext(): MapContextStore {
@@ -29,6 +32,7 @@ export function createMapContext(): MapContextStore {
   let markers = $state(new Map<string, MarkerRegistration>())
   let clusteredMarkerIds = $state(new Set<string>())
   let clusteredVersion = $state(0)
+  let activePopupMarkerId = $state<string | null>(null)
 
   const store: MapContextStore = {
     get map() { return map },
@@ -36,6 +40,7 @@ export function createMapContext(): MapContextStore {
     get markers() { return markers },
     get clusteredMarkerIds() { return clusteredMarkerIds },
     get clusteredVersion() { return clusteredVersion },
+    get activePopupMarkerId() { return activePopupMarkerId },
     setMap: (m) => { map = m },
     setLoaded: (l) => { loaded = l },
     registerMarker: (registration) => {
@@ -51,7 +56,8 @@ export function createMapContext(): MapContextStore {
       const nextEntry = { ...existing, ...updates }
       const lngLatChanged = existing.lngLat[0] !== nextEntry.lngLat[0] || existing.lngLat[1] !== nextEntry.lngLat[1]
       const clusterableChanged = existing.clusterable !== nextEntry.clusterable
-      if (!lngLatChanged && !clusterableChanged) {
+      const sizeChanged = existing.size !== nextEntry.size
+      if (!lngLatChanged && !clusterableChanged && !sizeChanged) {
         return
       }
       const next = new Map(markers)
@@ -66,6 +72,9 @@ export function createMapContext(): MapContextStore {
     setClusteredMarkers: (ids) => {
       clusteredMarkerIds = new Set(ids)
       clusteredVersion++
+    },
+    setActivePopupMarker: (id) => {
+      activePopupMarkerId = id
     },
   }
 

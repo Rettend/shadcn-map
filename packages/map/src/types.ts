@@ -24,6 +24,27 @@ export type MarkerColor = ThemeColorToken
 export type MarkerSize = 'sm' | 'md' | 'lg'
 
 /**
+ * Badge position on a marker
+ */
+export type BadgePosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'
+
+/**
+ * Badge shown on markers for additional indicators
+ */
+export interface MarkerBadge {
+  /** Iconify icon class (e.g. 'i-ph:credit-card') */
+  icon: string
+  /** Background color (UnoCSS class like 'bg-green-500') */
+  color?: string
+  /** Icon/text color (UnoCSS class, defaults to 'text-white') */
+  textColor?: string
+  /** Tooltip shown on hover */
+  label?: string
+  /** Position on the marker (defaults to 'top-right') */
+  position?: BadgePosition
+}
+
+/**
  * Map context type for child components
  * @deprecated Use MapContextStore from context.ts instead
  */
