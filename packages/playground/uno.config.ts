@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises'
 import { presetShadcn } from '@rttnd/unocss-preset-shadcn'
 import { defineConfig, presetIcons, presetWind4 } from 'unocss'
 import presetAnimations from 'unocss-preset-animations'
@@ -9,7 +10,13 @@ export default defineConfig({
         reset: true,
       },
     }),
-    presetIcons(),
+    presetIcons({
+      collections: {
+        custom: {
+          yuo: () => fs.readFile('./src/lib/assets/yuo.svg', 'utf-8'),
+        },
+      },
+    }),
     presetAnimations() as any,
     presetShadcn({
       color: 'blue',

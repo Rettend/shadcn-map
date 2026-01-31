@@ -1,5 +1,17 @@
+<script lang='ts' module>
+  import type { ControlPosition } from '../../types'
+
+  export interface ScaleControlProps {
+    /** Control position on map */
+    position?: ControlPosition
+    /** Unit of measurement */
+    unit?: 'imperial' | 'metric' | 'nautical'
+    /** Maximum width in pixels */
+    maxWidth?: number
+  }
+</script>
+
 <script lang='ts'>
-  import type { ScaleControlProps } from '../../types'
   import maplibregl from 'maplibre-gl'
   import { onMount } from 'svelte'
   import { getMapContext } from '../../context.svelte'
@@ -10,13 +22,11 @@
     maxWidth = 100,
   }: ScaleControlProps = $props()
 
-  // Get context - safe to call during init
   const ctx = getMapContext()
 
   let control: maplibregl.ScaleControl | null = null
 
   onMount(() => {
-    // Get map from context (reactive getter)
     const map = ctx.map
     if (!map)
       return

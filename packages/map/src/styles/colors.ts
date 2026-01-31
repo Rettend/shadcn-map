@@ -1,9 +1,4 @@
-/**
- * Shadcn-aligned color tokens for map styling
- * Using zinc color palette for consistency with shadcn-svelte
- */
 export const colors = {
-  // Dark mode colors
   dark: {
     background: '#09090b', // zinc-950
     land: '#0c0c0e',
@@ -16,7 +11,6 @@ export const colors = {
     labelHalo: '#09090b', // zinc-950
     boundary: '#27272a', // zinc-800
   },
-  // Light mode colors
   light: {
     background: '#fafafa', // zinc-50
     land: '#f4f4f5', // zinc-100
@@ -29,7 +23,6 @@ export const colors = {
     labelHalo: '#ffffff',
     boundary: '#d4d4d8', // zinc-300
   },
-  // Marker variants (matching shadcn button variants)
   marker: {
     default: {
       bg: '#27272a', // zinc-800

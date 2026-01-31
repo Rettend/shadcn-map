@@ -1,5 +1,17 @@
+<script lang='ts' module>
+  import type { ControlPosition } from '../../types'
+
+  export interface NavigationControlProps {
+    /** Control position on map */
+    position?: ControlPosition
+    /** Show compass */
+    showCompass?: boolean
+    /** Show zoom buttons */
+    showZoom?: boolean
+  }
+</script>
+
 <script lang='ts'>
-  import type { NavigationControlProps } from '../../types'
   import maplibregl from 'maplibre-gl'
   import { onMount } from 'svelte'
   import { getMapContext } from '../../context.svelte'
@@ -10,13 +22,11 @@
     showZoom = true,
   }: NavigationControlProps = $props()
 
-  // Get context - safe to call during init
   const ctx = getMapContext()
 
   let control: maplibregl.NavigationControl | null = null
 
   onMount(() => {
-    // Get map from context (reactive getter)
     const map = ctx.map
     if (!map)
       return

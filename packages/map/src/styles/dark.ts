@@ -1,10 +1,6 @@
 import type { StyleSpecification } from 'maplibre-gl'
 import { colors } from './colors'
 
-/**
- * Minimal dark map style
- * Extremely clean, focusing on roads with subtle water
- */
 export function createDarkStyle(tilesUrl: string): StyleSpecification {
   const c = colors.dark
 
@@ -20,7 +16,6 @@ export function createDarkStyle(tilesUrl: string): StyleSpecification {
     },
     glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
     layers: [
-      // Background
       {
         id: 'background',
         type: 'background',
@@ -28,7 +23,6 @@ export function createDarkStyle(tilesUrl: string): StyleSpecification {
           'background-color': c.background,
         },
       },
-      // Land (barely visible, for coastlines)
       {
         'id': 'land',
         'type': 'fill',
@@ -38,7 +32,6 @@ export function createDarkStyle(tilesUrl: string): StyleSpecification {
           'fill-color': c.land,
         },
       },
-      // Water
       {
         'id': 'water',
         'type': 'fill',
@@ -48,7 +41,6 @@ export function createDarkStyle(tilesUrl: string): StyleSpecification {
           'fill-color': c.water,
         },
       },
-      // Buildings (only at high zoom)
       {
         'id': 'buildings',
         'type': 'fill',
@@ -60,7 +52,6 @@ export function createDarkStyle(tilesUrl: string): StyleSpecification {
           'fill-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 15, 0.5],
         },
       },
-      // Roads - minor
       {
         'id': 'roads-minor',
         'type': 'line',
@@ -73,7 +64,6 @@ export function createDarkStyle(tilesUrl: string): StyleSpecification {
           'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 16, 2],
         },
       },
-      // Roads - major
       {
         'id': 'roads-major',
         'type': 'line',
@@ -86,7 +76,6 @@ export function createDarkStyle(tilesUrl: string): StyleSpecification {
           'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 12, 2, 16, 4],
         },
       },
-      // Roads - highway
       {
         'id': 'roads-highway',
         'type': 'line',
@@ -99,7 +88,6 @@ export function createDarkStyle(tilesUrl: string): StyleSpecification {
           'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 2, 16, 6],
         },
       },
-      // Boundaries
       {
         'id': 'boundaries',
         'type': 'line',
@@ -111,7 +99,6 @@ export function createDarkStyle(tilesUrl: string): StyleSpecification {
           'line-dasharray': [2, 2],
         },
       },
-      // Labels - places (minimal, only major)
       {
         'id': 'labels-places',
         'type': 'symbol',

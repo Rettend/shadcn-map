@@ -1,9 +1,14 @@
 <script lang='ts'>
-  import { Button } from '$lib/components/ui/button/index.js'
+  import { Button } from '$lib/components/ui/button'
   import { toggleMode } from 'mode-watcher'
 </script>
 
-<Button onclick={toggleMode} variant='outline' size='icon' class='transition-none dark:bg-background'>
+<Button
+  onclick={toggleMode}
+  variant='outline'
+  size='icon'
+  class='transition-none dark:text-foreground dark:border-border/70 dark:bg-muted dark:hover:bg-muted/90'
+>
   <div
     class='i-ph:sun-duotone opacity-100 h-[1.2rem] w-[1.2rem] scale-100 transition-all duration-200 dark:opacity-0 dark:scale-0'
   ></div>
