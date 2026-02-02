@@ -121,9 +121,9 @@
       if (w.hasVacuum)
         badges.push({ icon: 'i-ph:broom-fill', color: 'bg-violet-700', label: 'Vacuum', position: 'top-right' })
       if (w.hasAutomatic)
-        badges.push({ icon: 'i-ph:robot', color: 'bg-violet-700', label: 'Automatic', position: 'top-left' })
+        badges.push({ icon: 'i-ph:robot', color: 'bg-violet-700', label: 'Automatic', position: 'top-right' })
       if (w.hasCardPayment)
-        badges.push({ icon: 'i-ph:credit-card', color: 'bg-violet-700', label: 'Card', position: 'bottom-right' })
+        badges.push({ icon: 'i-ph:credit-card', color: 'bg-violet-700', label: 'Card', position: 'top-right' })
       map.set(w.id, badges)
     }
     return map
@@ -164,7 +164,7 @@
         color='bg-violet-600 dark:bg-violet-600'
         textColor='text-white'
         ringColor='ring-violet-500/50'
-        icon='i-ph:letter-s-bold'
+        icon='i-custom:yuo'
         label={w.name}
         badges={markerBadgesById.get(w.id) ?? []}
         active={store.selectedId === w.id}

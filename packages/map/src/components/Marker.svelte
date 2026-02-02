@@ -144,7 +144,6 @@
     return groups
   })
 
-  // Compute what to render for each position
   const renderedBadges = $derived.by(() => {
     const result: Array<{
       position: BadgePosition
@@ -189,6 +188,44 @@
           textColor: firstBadge?.textColor ?? 'text-white',
           label: count > 9 ? `${allLabels} (+${count - 9} more)` : allLabels,
           count,
+        })
+      }
+    }
+
+    return result
+  })
+
+  const expandedBadges = $derived.by(() => {
+    const result: Array<{
+      key: string
+      position: BadgePosition
+      icon: string
+      color: string
+      textColor: string
+      label: string
+      index: number
+      total: number
+    }> = []
+
+    for (const [position, positionBadges] of Object.entries(badgesByPosition) as [BadgePosition, MarkerBadge[]][]) {
+      if (positionBadges.length <= 1)
+        continue
+
+      const allLabels = positionBadges
+        .map(b => b.label)
+        .filter(Boolean)
+        .join(', ')
+
+      for (const [index, badge] of positionBadges.entries()) {
+        result.push({
+          key: `${position}-${index}`,
+          position: position as BadgePosition,
+          icon: badge.icon,
+          color: badge.color ?? 'bg-zinc-700',
+          textColor: badge.textColor ?? 'text-white',
+          label: index === 0 ? allLabels : (badge.label ?? ''),
+          index,
+          total: positionBadges.length,
         })
       }
     }
@@ -293,8 +330,22 @@
   {#each renderedBadges as badge (badge.position)}
     <div
       class='marker-badge {badge.color} {badge.textColor}'
+      class:has-expanded={badge.count > 1}
       data-position={badge.position}
       title={badge.label}
+    >
+      <span class='badge-icon {badge.icon}' aria-hidden='true'></span>
+    </div>
+  {/each}
+
+  {#each expandedBadges as badge (badge.key)}
+    <div
+      class='marker-badge marker-badge-expanded {badge.color} {badge.textColor}'
+      data-position={badge.position}
+      data-index={badge.index}
+      data-total={badge.total}
+      title={badge.label}
+      style:--badge-index={badge.index}
     >
       <span class='badge-icon {badge.icon}' aria-hidden='true'></span>
     </div>
@@ -393,6 +444,7 @@
     pointer-events: auto;
     cursor: default;
     z-index: 1;
+    transition: opacity 0.2s ease, transform 0.2s ease;
   }
 
   .marker-badge[data-position='top-right'] {
@@ -413,6 +465,60 @@
   .marker-badge[data-position='bottom-left'] {
     bottom: calc(var(--badge-offset) * -1);
     left: calc(var(--badge-offset) * -1);
+  }
+
+  /* Expanded badges: hidden by default, spread on hover */
+  .marker-badge-expanded {
+    --badge-spread: calc(var(--badge-size) + 4px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Spread direction based on position */
+  .marker-badge-expanded[data-position='top-right'] {
+    transform: translateX(0);
+  }
+
+  .marker-badge-expanded[data-position='top-left'] {
+    transform: translateX(0);
+  }
+
+  .marker-badge-expanded[data-position='bottom-right'] {
+    transform: translateX(0);
+  }
+
+  .marker-badge-expanded[data-position='bottom-left'] {
+    transform: translateX(0);
+  }
+
+  /* On hover: show expanded badges with spread */
+  .shadcn-marker:hover .marker-badge-expanded {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+  }
+
+  .shadcn-marker:hover .marker-badge-expanded[data-position='top-right'] {
+    transform: translateX(calc(var(--badge-spread) * var(--badge-index)));
+  }
+
+  .shadcn-marker:hover .marker-badge-expanded[data-position='top-left'] {
+    transform: translateX(calc(var(--badge-spread) * var(--badge-index) * -1));
+  }
+
+  .shadcn-marker:hover .marker-badge-expanded[data-position='bottom-right'] {
+    transform: translateX(calc(var(--badge-spread) * var(--badge-index)));
+  }
+
+  .shadcn-marker:hover .marker-badge-expanded[data-position='bottom-left'] {
+    transform: translateX(calc(var(--badge-spread) * var(--badge-index) * -1));
+  }
+
+  /* Hide the count badge on hover when there are expanded badges */
+  .shadcn-marker:hover .marker-badge.has-expanded {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .badge-icon {

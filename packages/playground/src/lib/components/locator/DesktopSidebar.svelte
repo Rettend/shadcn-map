@@ -38,11 +38,6 @@
   )}
 >
   <div class='p-3 border-b border-border'>
-    <div class='text-sm font-semibold'>Wash locator</div>
-    <div class='text-xs text-muted-foreground'>Search + filters + nearby ordering</div>
-  </div>
-
-  <div class='p-3 border-b border-border'>
     <SearchRow
       query={store.query}
       filters={store.filters}
