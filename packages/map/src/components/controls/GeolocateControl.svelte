@@ -119,12 +119,23 @@
 </script>
 
 <style>
-  /* Make the icon a bit crisper in dark mode (fits the existing Map.svelte styles). */
-  :global(.dark) :global(.shadcn-map) :global(.shadcn-geolocate .maplibregl-ctrl-icon) {
-    filter: invert(1) brightness(1.1) contrast(1.1);
+  /* Geolocate button base styles */
+  :global(.shadcn-map .shadcn-geolocate-btn) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: none !important;
+    background-color: transparent !important;
   }
 
-  :global(.shadcn-geolocate-btn svg) {
+  :global(.shadcn-map .shadcn-geolocate-btn svg) {
     display: block;
+  }
+
+  /* Dark mode: override the filter: invert(1) from Map.svelte since we use inline SVG with currentColor.
+   * Also explicitly set color so the SVG stroke inherits the light foreground. */
+  :global(.dark .shadcn-map .shadcn-geolocate-btn.maplibregl-ctrl-icon) {
+    filter: none !important;
+    color: var(--map-ui-foreground);
   }
 </style>

@@ -31,7 +31,8 @@
 
 <aside
   class={cn(
-    'absolute left-3 top-3 bottom-3 w-[min(92vw,380px)] z-20',
+    // Leave room for the map's bottom-left scale control.
+    'absolute left-3 top-3 bottom-[36px] w-[min(92vw,380px)] z-20',
     'rounded-xl border border-border bg-card text-card-foreground shadow-xl',
     'flex flex-col overflow-hidden',
     className,

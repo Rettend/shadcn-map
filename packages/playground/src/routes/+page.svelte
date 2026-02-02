@@ -130,7 +130,10 @@
   })
 </script>
 
-<div class='h-full w-full relative'>
+<div
+  class={`controls-host h-full w-full relative ${isMobile ? 'is-mobile' : ''}`}
+  style={`--mobile-controls-bottom: ${isMobile ? (store.drawerExpanded ? '60vh' : '30vh') : '0px'};`}
+>
   <MapView
     tiles='https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles'
     center={[19.0402, 47.4979]}
@@ -240,3 +243,11 @@
     {/if}
   </MapView>
 </div>
+
+<style>
+  /* Mobile: the bottom drawer would cover map controls. Push bottom controls up to the top edge of the drawer. */
+  :global(.controls-host.is-mobile .shadcn-map .maplibregl-ctrl-bottom-left),
+  :global(.controls-host.is-mobile .shadcn-map .maplibregl-ctrl-bottom-right) {
+    bottom: calc(var(--mobile-controls-bottom) + 20px);
+  }
+</style>
