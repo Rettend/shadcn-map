@@ -295,7 +295,7 @@
   }
 
   :global(.dark) .shadcn-map :global(.maplibregl-ctrl-compass .maplibregl-ctrl-icon) {
-    filter: invert(1) brightness(1.3) contrast(1.2) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+    filter: invert(1) brightness(1.8) contrast(1.3) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
   }
 
   /* Scale control dark mode */

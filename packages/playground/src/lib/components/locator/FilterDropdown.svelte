@@ -12,6 +12,9 @@
     class?: string
   } = $props()
 
+  let detailsEl: HTMLDetailsElement | null = $state(null)
+  let open = $state(false)
+
   const activeCount = $derived.by(() => {
     let n = 0
     if (filters.openNow)
@@ -32,9 +35,45 @@
   function set(partial: Partial<FiltersState>) {
     onChange({ ...filters, ...partial })
   }
+
+  function close() {
+    open = false
+    // Ensure the native "open" attribute is removed even if binding lags.
+    detailsEl?.removeAttribute('open')
+  }
+
+  $effect(() => {
+    if (!open)
+      return
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!detailsEl)
+        return
+      if (e.target instanceof Node && detailsEl.contains(e.target))
+        return
+      close()
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape')
+        return
+      e.preventDefault()
+      close()
+      // Put focus back on the trigger for good keyboard UX.
+      void (detailsEl?.querySelector('summary') as HTMLElement | null)?.focus()
+    }
+
+    document.addEventListener('pointerdown', onPointerDown, { capture: true })
+    document.addEventListener('keydown', onKeyDown, { capture: true })
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, { capture: true })
+      document.removeEventListener('keydown', onKeyDown, { capture: true })
+    }
+  })
 </script>
 
-<details class={cn('relative', className)}>
+<details bind:this={detailsEl} bind:open={open} class={cn('relative', className)}>
   <summary
     class={cn(
       'list-none select-none cursor-pointer',

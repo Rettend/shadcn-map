@@ -267,40 +267,40 @@
       }}
     />
     <ScaleControl position='bottom-left' />
-
-    {#if isMobile}
-      <MobilePanel
-        store={store}
-        results={store.results}
-        selected={selected}
-        onSelect={id => centerOnId(id, 14)}
-        onCloseDetails={closeDetailsMobile}
-        onSearchSubmit={handleSearchSubmit}
-        onQueryChange={q => (store.query = q)}
-        onFiltersChange={f => (store.filters = f)}
-        onToggleExpanded={() => {
-          // Expand toggles 30% <-> 60%. If the panel is collapsed, restore it to the default 30% state.
-          if (store.drawerCollapsed) {
-            store.drawerCollapsed = false
-            store.drawerExpanded = false
-            return
-          }
-          store.drawerExpanded = !store.drawerExpanded
-        }}
-      />
-    {:else}
-      <DesktopSidebar
-        store={store}
-        results={store.results}
-        selected={selected}
-        onSelect={id => openDetailsForId(id)}
-        onBack={backDesktop}
-        onSearchSubmit={handleSearchSubmit}
-        onQueryChange={q => (store.query = q)}
-        onFiltersChange={f => (store.filters = f)}
-      />
-    {/if}
   </MapView>
+
+  {#if isMobile}
+    <MobilePanel
+      store={store}
+      results={store.results}
+      selected={selected}
+      onSelect={id => centerOnId(id, 14)}
+      onCloseDetails={closeDetailsMobile}
+      onSearchSubmit={handleSearchSubmit}
+      onQueryChange={q => (store.query = q)}
+      onFiltersChange={f => (store.filters = f)}
+      onToggleExpanded={() => {
+        // Expand toggles 30% <-> 60%. If the panel is collapsed, restore it to the default 30% state.
+        if (store.drawerCollapsed) {
+          store.drawerCollapsed = false
+          store.drawerExpanded = false
+          return
+        }
+        store.drawerExpanded = !store.drawerExpanded
+      }}
+    />
+  {:else}
+    <DesktopSidebar
+      store={store}
+      results={store.results}
+      selected={selected}
+      onSelect={id => openDetailsForId(id)}
+      onBack={backDesktop}
+      onSearchSubmit={handleSearchSubmit}
+      onQueryChange={q => (store.query = q)}
+      onFiltersChange={f => (store.filters = f)}
+    />
+  {/if}
 </div>
 
 <style>
