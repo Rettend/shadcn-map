@@ -47,12 +47,14 @@
     if (isMobile) {
       store.drawerMode = 'details'
       store.drawerExpanded = true
+      store.drawerCollapsed = false
     }
   }
 
   function closeDetailsMobile() {
     store.drawerMode = 'browse'
     store.drawerExpanded = false
+    store.drawerCollapsed = false
   }
 
   function backDesktop() {
@@ -132,7 +134,11 @@
 
 <div
   class={`controls-host h-full w-full relative ${isMobile ? 'is-mobile' : ''}`}
-  style={`--mobile-controls-bottom: ${isMobile ? (store.drawerExpanded ? '60vh' : '30vh') : '0px'};`}
+  style={`--mobile-controls-bottom: ${
+    isMobile
+      ? (store.drawerCollapsed ? '56px' : (store.drawerExpanded ? '60vh' : '30vh'))
+      : '0px'
+  };`}
 >
   <MapView
     tiles='https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles'
@@ -177,6 +183,7 @@
           if (isMobile) {
             store.drawerMode = 'details'
             store.drawerExpanded = true
+            store.drawerCollapsed = false
           }
         }}
       />
@@ -227,7 +234,15 @@
         onSearchSubmit={handleSearchSubmit}
         onQueryChange={q => (store.query = q)}
         onFiltersChange={f => (store.filters = f)}
-        onToggleExpanded={() => (store.drawerExpanded = !store.drawerExpanded)}
+        onToggleExpanded={() => {
+          // Expand toggles 30% <-> 60%. If the panel is collapsed, restore it to the default 30% state.
+          if (store.drawerCollapsed) {
+            store.drawerCollapsed = false
+            store.drawerExpanded = false
+            return
+          }
+          store.drawerExpanded = !store.drawerExpanded
+        }}
       />
     {:else}
       <DesktopSidebar

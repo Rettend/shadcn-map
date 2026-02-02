@@ -85,6 +85,7 @@ export class WashesStore {
 
   drawerMode = $state<DrawerMode>('browse')
   drawerExpanded = $state(false)
+  drawerCollapsed = $state(false)
 
   // map state (updated from Map events/context)
   mapCenter = $state<[number, number] | null>(null)
