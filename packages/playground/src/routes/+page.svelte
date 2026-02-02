@@ -24,13 +24,37 @@
     }
   }
 
-  function locateSelected() {
-    if (!mapRef || !store.selectedId)
-      return
-    const loc = store.all.find(w => w.id === store.selectedId)
-    if (!loc)
-      return
-    mapRef.easeTo({ center: loc.lngLat, zoom: Math.max(mapRef.getZoom(), 14), duration: 450 })
+  function getCameraOffsetPx(map: MapLibreMap): [number, number] {
+    const container = map.getContainer()
+    const w = container.clientWidth
+    const h = container.clientHeight
+
+    if (isMobile) {
+      const drawerH = store.drawerCollapsed
+        ? (52 + 12) // header + bottom margin
+        : ((store.drawerExpanded ? 0.6 : 0.3) * h + 12) // panel height + bottom margin
+      return [0, -drawerH / 2]
+    }
+
+    // Desktop: left sidebar overlays the map; center within the remaining visible area.
+    const sidebarW = Math.min(w * 0.92, 380) + 12 // width + left margin
+    return [sidebarW / 2, 0]
+  }
+
+  function getFitPaddingPx(map: MapLibreMap) {
+    const container = map.getContainer()
+    const w = container.clientWidth
+    const h = container.clientHeight
+
+    if (isMobile) {
+      const bottom = store.drawerCollapsed
+        ? 96
+        : Math.round((store.drawerExpanded ? 0.6 : 0.3) * h + 24)
+      return { top: 80, left: 24, right: 24, bottom }
+    }
+
+    const sidebarW = Math.min(w * 0.92, 380)
+    return { top: 80, left: Math.round(sidebarW + 48), right: 24, bottom: 80 }
   }
 
   function centerOnId(id: string, zoom = 15) {
@@ -39,7 +63,12 @@
     if (!loc || !mapRef)
       return
 
-    mapRef.easeTo({ center: loc.lngLat, zoom, duration: 450 })
+    mapRef.easeTo({
+      center: loc.lngLat,
+      zoom,
+      duration: 450,
+      offset: getCameraOffsetPx(mapRef),
+    })
   }
 
   function openDetailsForId(id: string) {
@@ -55,6 +84,7 @@
     store.drawerMode = 'browse'
     store.drawerExpanded = false
     store.drawerCollapsed = false
+    store.selectedId = null
   }
 
   function backDesktop() {
@@ -67,7 +97,12 @@
     if (store.results.length === 0)
       return
     if (store.results.length === 1) {
-      mapRef.easeTo({ center: store.results[0]!.lngLat, zoom: 13, duration: 500 })
+      mapRef.easeTo({
+        center: store.results[0]!.lngLat,
+        zoom: 13,
+        duration: 500,
+        offset: getCameraOffsetPx(mapRef),
+      })
       return
     }
 
@@ -88,9 +123,7 @@
         [maxLng, maxLat],
       ],
       {
-        padding: isMobile
-          ? { top: 80, left: 24, right: 24, bottom: 280 }
-          : { top: 80, left: 420, right: 24, bottom: 80 },
+        padding: getFitPaddingPx(mapRef),
         duration: 550,
         maxZoom: 13,
       },
@@ -115,6 +148,27 @@
   })
 
   const selected = $derived.by(() => store.all.find(w => w.id === store.selectedId) ?? null)
+
+  function ensureVisibleWhenOpeningMobileDrawer(lngLat: [number, number]) {
+    if (!isMobile || !mapRef) {
+      return
+    }
+
+    const container = mapRef.getContainer()
+    const h = container.clientHeight
+    const drawerH = 0.6 * h + 12 // drawer is opening to 60vh + bottom margin
+
+    const p = mapRef.project(lngLat)
+    const gap = 48
+    const safeBottom = h - drawerH - gap
+    if (p.y <= safeBottom) {
+      return
+    }
+
+    const delta = p.y - safeBottom
+    // Move the map just enough so the marker ends up above the opening drawer.
+    mapRef.panBy([0, delta], { duration: 260 })
+  }
 
   const markerBadgesById = $derived.by(() => {
     const map = new Map<string, MarkerBadge[]>()
@@ -160,6 +214,7 @@
         // Map click on mobile closes details mode.
         if (store.drawerMode === 'details') {
           closeDetailsMobile()
+          store.selectedId = null
         }
       }
       else {
@@ -179,8 +234,8 @@
         active={store.selectedId === w.id}
         onclick={() => {
           store.selectedId = w.id
-          locateSelected()
           if (isMobile) {
+            ensureVisibleWhenOpeningMobileDrawer(w.lngLat)
             store.drawerMode = 'details'
             store.drawerExpanded = true
             store.drawerCollapsed = false
@@ -199,17 +254,6 @@
       >
         <div class='text-sm font-semibold'>{selected.name}</div>
         <div class='text-xs text-muted-foreground'>{selected.address}, {selected.city}</div>
-        <button
-          type='button'
-          class='text-xs text-primary-foreground px-2.5 py-1.5 rounded-md bg-primary inline-flex gap-1.5 transition-colors items-center hover:bg-primary/90'
-          onclick={() => {
-            // switch focus to sidebar details
-            store.selectedId = selected.id
-          }}
-        >
-          <span class='i-ph:info-bold'></span>
-          Details
-        </button>
       </Popup>
     {/if}
 

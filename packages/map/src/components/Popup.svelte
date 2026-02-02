@@ -36,6 +36,7 @@
   let popup: maplibregl.Popup | null = null
   let contentElement: HTMLDivElement
   let programmaticClose = false
+  let lastActiveMarkerId: string | null = null
 
   const sizeOffsets: Record<'sm' | 'md' | 'lg', [number, number]> = {
     sm: [0, -12],
@@ -104,6 +105,11 @@
     }
 
     return () => {
+      // If this popup is being unmounted while open, MapLibre won't necessarily emit a "close"
+      // event (we detach the listener before remove). Ensure the marker active state is cleared.
+      if (lastActiveMarkerId && ctx.activePopupMarkerId === lastActiveMarkerId) {
+        ctx.setActivePopupMarker(null)
+      }
       popup?.off('close', handleClose)
       popup?.remove()
       popup = null
@@ -134,6 +140,7 @@
       }
       if (markerAtLocation) {
         ctx.setActivePopupMarker(markerAtLocation.id)
+        lastActiveMarkerId = markerAtLocation.id
       }
     }
     else if (popup.isOpen()) {
