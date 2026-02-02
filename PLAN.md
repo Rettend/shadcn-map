@@ -440,76 +440,181 @@ Use a public demo file for quick testing:
 
 ---
 
-## Implementation Phases
+## Implementation Status
 
-### Phase 1: Foundation ✦ MVP
+### Library Core (Complete)
 
-**Goal:** Basic map with markers working
-
-- [x] Set up library package structure with proper exports
-- [x] Install MapLibre GL + pmtiles
-- [x] Implement `<Map>` component with PMTiles support
-- [x] Create dark + light minimal styles
-- [x] Integrate with mode-watcher for auto theme
-- [x] Implement context for child components (using Svelte 5 $state in .svelte.ts)
-- [x] Create basic `<Marker>` component (default variant)
-- [x] Add `<NavigationControl>`
-- [x] Add `<ScaleControl>` (moved from Phase 3)
-- [x] Set up playground with hosted PMTiles
-
-**Deliverable:** Render a dark/light map with markers ✅
-
----
-
-### Phase 2: Interactivity
-
-**Goal:** Full marker system and popups
-
-- [x] Marker colors (shadcn theme tokens)
-- [x] Marker sizes (sm, md, lg)
-- [x] Marker icons (icon class)
-- [x] Marker pulse animation
-- [x] Marker labels (hover)
+- [x] `<Map>` component with PMTiles support
+- [x] Dark + light minimal styles with mode-watcher integration
+- [x] `<Marker>` with colors, sizes, icons, badges, labels
 - [x] `<Popup>` component
-- [x] Click/select interactions
+- [x] `<DetailsPanel>` (desktop floating panel + mobile bottom card)
+- [x] `<ClusterLayer>` for auto-grouping markers
+- [x] `<NavigationControl>` and `<ScaleControl>`
+- [x] Context system for child components
 
-**Deliverable:** Interactive map with styled markers and popups
+### Library Additions Needed
 
----
-
-### Phase 3: Advanced Components
-
-**Goal:** Production-ready features
-
-- [x] `<ClusterLayer>` for marker clustering
-- [x] `<DetailsPanel>` with shadcn Drawer on mobile
-- [x] Mobile responsive behavior
-- [ ] Accessibility (keyboard nav, ARIA)
-
-**Deliverable:** Feature-complete library
+- [ ] `<GeolocateControl>` — Button to move map to user's current location
+- [ ] `flyTo()` method on map context — Programmatic camera control
+- [ ] `getBounds()` method on map context — Get current viewport bounds
 
 ---
 
-### Phase 4: Polish & Release
+## Playground: Car Wash Locator Demo
 
-**Goal:** Ready for npm
+The playground demonstrates a real-world use case: a car wash locator app with search, filters, and location details.
 
-- [ ] TypeScript types exports
-- [ ] Export styles as constants for user customization
-- [ ] Playground with demo data
-- [ ] Performance optimization
-- [ ] Package publishing setup (bumpp)
-- [ ] README with examples
+### Data Model
 
----
+```typescript
+interface WashLocation {
+  id: string
+  name: string
+  address: string
+  city: string
+  lngLat: [number, number]
+  bays: number           // Number of wash bays
+  terminals: number      // Payment terminals
+  hasVacuum: boolean
+  hasAutomatic: boolean
+  hours: string          // e.g. "0-24" or "6:00-22:00"
+  paymentMethods: string[]
+}
+```
 
-### Post-MVP / Future
+### Mobile UX
 
-- [ ] `<SearchControl>` — Geocoding with Nominatim (find addresses)
-- [ ] GeoJSON layer support
-- [ ] Route display (just display, not calculate)
-- [ ] Heatmap layer
-- [ ] Custom tile style builder
+```txt
+┌─────────────────────────────┐
+│                             │
+│           MAP               │
+│                             │
+│    [markers + clusters]     │
+│                             │
+│                    [+][-]   │
+│                    [📍]     │  ← GeolocateControl
+├─────────────────────────────┤  ← Drawer ~30% height
+│ [🔍 Search...        ] [⚙]  │  ← Search + filter button
+├─────────────────────────────┤
+│ ┌─────────────────────────┐ │
+│ │ Wash Name    2.3 km     │ │  ← Results list (scrollable)
+│ │ Address, City           │ │
+│ └─────────────────────────┘ │
+│ ┌─────────────────────────┐ │
+│ │ Another Wash  3.1 km    │ │
+│ └─────────────────────────┘ │
+└─────────────────────────────┘
+```
+
+**Interactions:**
+
+1. **Default state**: Drawer at ~30%, shows search bar + nearby results
+2. **Expand button**: Moves drawer to ~60%, more results visible
+3. **Tap result in list**: Map centers on marker, highlights it
+4. **Tap marker on map**:
+   - Map centers on marker
+   - Drawer expands to show full location details
+   - Details include: name, address, all properties, "Open in Maps" button
+   - X button in corner returns to search/list view
+5. **GeolocateControl**: Moves map to current location, updates "nearby" list
+6. **Filter button**: Shows active filter count, opens dropdown with filter options
+
+### Desktop UX
+
+```txt
+┌──────────────────┬──────────────────────────────────────┐
+│                  │                                      │
+│  SIDEBAR         │              MAP                     │
+│  (always open)   │                                      │
+│                  │        [markers + clusters]          │
+│ ┌──────────────┐ │                                      │
+│ │🔍 Search...  │ │                                      │
+│ └──────────────┘ │                                      │
+│ [Vacuum ▼] [24h] │  ← Filters                           │
+│                  │                              [+][-]  │
+│ ─────────────────│                              [📍]    │
+│                  │                                      │
+│ Results:         │         ┌─────────┐                  │
+│ ┌──────────────┐ │         │ Popup   │                  │
+│ │ Wash Name    │ │         │ preview │                  │
+│ │ 2.3 km       │ │         └─────────┘                  │
+│ └──────────────┘ │                                      │
+│ ┌──────────────┐ │                                      │
+│ │ Another Wash │ │                                      │
+│ └──────────────┘ │                                      │
+│                  │                                      │
+└──────────────────┴──────────────────────────────────────┘
+```
+
+**When marker selected:**
+
+```txt
+┌──────────────────┬──────────────────────────────────────┐
+│                  │                                      │
+│  [← Back]        │              MAP                     │
+│                  │                                      │
+│  Wash Name       │                                      │
+│  ═══════════════ │                                      │
+│                  │                                      │
+│  📍 Address      │                              [+][-]  │
+│  City            │                              [📍]    │
+│                  │                                      │
+│  🚗 4 bays       │         ┌─────────┐                  │
+│  💳 2 terminals  │         │ Popup   │  ← stays open    │
+│  🧹 Vacuum       │         │ preview │                  │
+│  🤖 Automatic    │         └─────────┘                  │
+│  🕐 0-24         │                                      │
+│                  │                                      │
+│  [🗺 Open in Maps]│                                      │
+│                  │                                      │
+└──────────────────┴──────────────────────────────────────┘
+```
+
+### Component Structure
+
+```txt
+packages/playground/src/
+├── lib/
+│   ├── components/
+│   │   ├── Sidebar.svelte           # Desktop sidebar
+│   │   ├── MobileDrawer.svelte      # Mobile bottom drawer
+│   │   ├── SearchBar.svelte         # Search input
+│   │   ├── FilterDropdown.svelte    # Filter UI
+│   │   ├── ResultsList.svelte       # Location cards list
+│   │   └── LocationDetails.svelte   # Full location info
+│   ├── data/
+│   │   └── washes.ts                # Demo wash locations
+│   └── stores/
+│       └── washes.svelte.ts         # State: locations, filtered, selected
+└── routes/
+    └── +page.svelte                 # Main page
+```
+
+### Implementation Tasks
+
+**Library:**
+
+- [ ] Add `<GeolocateControl>` component
+- [ ] Add `flyTo(lngLat, zoom?)` to map context
+- [ ] Add `getBounds()` to map context
+
+**Playground:**
+
+- [ ] Create demo wash location data (~20 locations in Hungary)
+- [ ] Create `washes.svelte.ts` store (all, filtered, selected, search query)
+- [ ] Create `Sidebar.svelte` for desktop
+- [ ] Create `MobileDrawer.svelte` for mobile (vaul-svelte drawer)
+- [ ] Create `SearchBar.svelte`
+- [ ] Create `FilterDropdown.svelte`
+- [ ] Create `ResultsList.svelte`
+- [ ] Create `LocationDetails.svelte`
+- [ ] Wire up main page with responsive layout
+- [ ] Implement search (filter by city/name)
+- [ ] Implement filters (vacuum, 24h, etc.)
+- [ ] Implement "nearby" sorting by distance from map center
+- [ ] Center map on marker click
+- [ ] Popup on desktop for quick preview
 
 ---
 

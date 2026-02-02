@@ -9,6 +9,7 @@
     "build": "cd packages/playground && bun run build",
     "preview": "cd packages/playground && bun run preview",
     "package": "cd packages/map && bun run build",
+    "watch": "cd packages/map && bun run dev",
     "lint": "eslint . --fix",
     "check": "cd packages/map && bun run check",
     "update": "taze latest -wr",

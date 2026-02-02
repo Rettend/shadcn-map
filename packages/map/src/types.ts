@@ -14,6 +14,11 @@ export type ControlPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom
 export type StyleMode = 'auto' | 'dark' | 'light'
 
 /**
+ * Label density preset for built-in styles
+ */
+export type LabelMode = 'minimal' | 'roads'
+
+/**
  * Marker color tokens matching shadcn theme CSS vars
  */
 export type MarkerColor = ThemeColorToken

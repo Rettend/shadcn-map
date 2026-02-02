@@ -1,3 +1,5 @@
+export { default as GeolocateControl } from './GeolocateControl.svelte'
+export type { GeolocateControlProps } from './GeolocateControl.svelte'
 export { default as NavigationControl } from './NavigationControl.svelte'
 export type { NavigationControlProps } from './NavigationControl.svelte'
 export { default as ScaleControl } from './ScaleControl.svelte'

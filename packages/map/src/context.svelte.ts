@@ -10,6 +10,17 @@ export interface MarkerRegistration {
   size?: 'sm' | 'md' | 'lg'
 }
 
+export interface FlyToOptions {
+  zoom?: number
+  duration?: number
+  easing?: (t: number) => number
+}
+
+export interface LngLatBounds {
+  sw: [number, number]
+  ne: [number, number]
+}
+
 export interface MapContextStore {
   readonly map: maplibregl.Map | null
   readonly loaded: boolean
@@ -24,6 +35,10 @@ export interface MapContextStore {
   unregisterMarker: (id: string) => void
   setClusteredMarkers: (ids: Set<string>) => void
   setActivePopupMarker: (id: string | null) => void
+  flyTo: (lngLat: [number, number], options?: FlyToOptions) => void
+  getBounds: () => LngLatBounds | null
+  getCenter: () => [number, number] | null
+  getZoom: () => number | null
 }
 
 export function createMapContext(): MapContextStore {
@@ -75,6 +90,41 @@ export function createMapContext(): MapContextStore {
     },
     setActivePopupMarker: (id) => {
       activePopupMarkerId = id
+    },
+    flyTo: (lngLat, options) => {
+      if (!map) {
+        return
+      }
+
+      map.easeTo({
+        center: lngLat,
+        zoom: options?.zoom,
+        duration: options?.duration,
+        easing: options?.easing,
+      })
+    },
+    getBounds: () => {
+      if (!map) {
+        return null
+      }
+      const bounds = map.getBounds()
+      return {
+        sw: [bounds.getWest(), bounds.getSouth()],
+        ne: [bounds.getEast(), bounds.getNorth()],
+      }
+    },
+    getCenter: () => {
+      if (!map) {
+        return null
+      }
+      const center = map.getCenter()
+      return [center.lng, center.lat]
+    },
+    getZoom: () => {
+      if (!map) {
+        return null
+      }
+      return map.getZoom()
     },
   }
 
