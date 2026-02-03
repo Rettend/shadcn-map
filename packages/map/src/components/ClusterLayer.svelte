@@ -66,15 +66,8 @@
   let supercluster: Supercluster<{ id: string | number }, Supercluster.AnyProps> | null = null
   let lastSuperclusterPointsKey = ''
 
-  function getIsDarkMode(): boolean {
-    if (typeof document === 'undefined') {
-      return true
-    }
-    return document.documentElement.classList.contains('dark')
-  }
-
   function getThemeColors() {
-    const isDark = getIsDarkMode()
+    const isDark = ctx.resolvedMode === 'dark'
     return isDark
       ? {
         clusterLow: '#3f3f46',
@@ -507,5 +500,41 @@
     ensureLayers()
     updateSourceData()
     scheduleUnclusteredUpdate()
+  })
+
+  // Update cluster colors when resolvedMode changes
+  $effect(() => {
+    // Access resolvedMode to track as dependency
+    void ctx.resolvedMode
+    if (!map || !map.isStyleLoaded()) {
+      return
+    }
+
+    const colors = getThemeColors()
+
+    // Update cluster layer colors
+    if (map.getLayer(clusterLayerId)) {
+      map.setPaintProperty(clusterLayerId, 'circle-color', [
+        'step',
+        ['get', 'point_count'],
+        colors.clusterLow,
+        10,
+        colors.clusterMid,
+        50,
+        colors.clusterHigh,
+      ])
+      map.setPaintProperty(clusterLayerId, 'circle-stroke-color', colors.clusterStroke)
+    }
+
+    // Update cluster count text color
+    if (map.getLayer(clusterCountId)) {
+      map.setPaintProperty(clusterCountId, 'text-color', colors.clusterText)
+    }
+
+    // Update unclustered point colors
+    if (showUnclustered && map.getLayer(unclusteredLayerId)) {
+      map.setPaintProperty(unclusteredLayerId, 'circle-color', colors.point)
+      map.setPaintProperty(unclusteredLayerId, 'circle-stroke-color', colors.pointStroke)
+    }
   })
 </script>
