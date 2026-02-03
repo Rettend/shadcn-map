@@ -1,6 +1,6 @@
 <script lang='ts' module>
   import type { Snippet } from 'svelte'
-  import type { MapLibreMap, StyleMode, StyleSpecification } from '../types'
+  import type { LabelMode, MapLibreMap, StyleMode, StyleSpecification } from '../types'
 
   export interface MapProps {
     /** Initial center coordinates [lng, lat] */
@@ -17,6 +17,8 @@
     bearing?: number
     /** Map style: 'auto' uses mode-watcher, or specify 'dark'/'light'/custom StyleSpec */
     style?: StyleMode | StyleSpecification
+    /** Built-in label density preset (only applies to built-in dark/light/auto styles) */
+    labels?: LabelMode
     /** URL to PMTiles file (required) */
     tiles: string
     /** Enable map interactions (pan, zoom) */
@@ -68,6 +70,7 @@
     pitch = 0,
     bearing = 0,
     style = 'auto',
+    labels = 'minimal',
     tiles,
     interactive = true,
     dragRotate = true,
@@ -100,7 +103,7 @@
 
     const mode: StyleMode = style === 'auto' ? (getIsDarkMode() ? 'dark' : 'light') : style
 
-    return mode === 'dark' ? createDarkStyle(tiles) : createLightStyle(tiles)
+    return mode === 'dark' ? createDarkStyle(tiles, { labels }) : createLightStyle(tiles, { labels })
   }
 
   const ctx = createMapContext()
@@ -292,7 +295,7 @@
   }
 
   :global(.dark) .shadcn-map :global(.maplibregl-ctrl-compass .maplibregl-ctrl-icon) {
-    filter: invert(1) brightness(1.3) contrast(1.2) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+    filter: invert(1) brightness(1.8) contrast(1.3) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
   }
 
   /* Scale control dark mode */

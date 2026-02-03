@@ -1,5 +1,5 @@
 <script lang='ts' module>
-  import type { MarkerColor, MarkerSize } from '../types'
+  import type { BadgePosition, MarkerBadge, MarkerColor, MarkerSize } from '../types'
 
   export interface MarkerProps {
     /** Marker position [lng, lat] */
@@ -10,8 +10,6 @@
     textColor?: string
     /** Size */
     size?: MarkerSize
-    /** Show pulse animation */
-    pulse?: boolean
     /** Label shown on hover */
     label?: string
     /** Allow dragging */
@@ -26,6 +24,12 @@
     icon?: string
     /** Include marker in auto clustering */
     clusterable?: boolean
+    /** Badge(s) at corners. Same-position badges cluster into count. */
+    badges?: MarkerBadge[]
+    /** Manually mark as active (for DetailsPanel). Auto-detected for Popup. */
+    active?: boolean
+    /** Ring color class for active state (UnoCSS ring color class, e.g. 'ring-emerald-500/50'). */
+    ringColor?: string
   }
 </script>
 
@@ -39,7 +43,6 @@
     lngLat,
     color = 'primary',
     size = 'md',
-    pulse = false,
     label,
     draggable = false,
     class: className = '',
@@ -48,6 +51,9 @@
     icon,
     textColor,
     clusterable = true,
+    badges = [],
+    active = false,
+    ringColor,
   }: MarkerProps = $props()
 
   const ctx = getMapContext()
@@ -66,10 +72,10 @@
 
   const markerId = createMarkerId()
 
-  const sizes: Record<MarkerSize, { width: number, height: number, iconSize: number }> = {
-    sm: { width: 24, height: 24, iconSize: 12 },
-    md: { width: 32, height: 32, iconSize: 16 },
-    lg: { width: 44, height: 44, iconSize: 20 },
+  const sizes: Record<MarkerSize, { width: number, height: number, iconSize: number, badgeSize: number, badgeIconSize: number, badgeOffset: number }> = {
+    sm: { width: 28, height: 28, iconSize: 16, badgeSize: 16, badgeIconSize: 10, badgeOffset: 6 },
+    md: { width: 36, height: 36, iconSize: 20, badgeSize: 20, badgeIconSize: 12, badgeOffset: 7 },
+    lg: { width: 44, height: 44, iconSize: 24, badgeSize: 24, badgeIconSize: 14, badgeOffset: 8 },
   }
 
   const colorForegroundMap: Partial<Record<MarkerColor, MarkerColor>> = {
@@ -97,6 +103,17 @@
     'sidebar-accent-foreground': 'sidebar-accent',
   }
 
+  const numberIcons: Record<number, string> = {
+    2: 'i-ph:number-two-bold',
+    3: 'i-ph:number-three-bold',
+    4: 'i-ph:number-four-bold',
+    5: 'i-ph:number-five-bold',
+    6: 'i-ph:number-six-bold',
+    7: 'i-ph:number-seven-bold',
+    8: 'i-ph:number-eight-bold',
+    9: 'i-ph:number-nine-bold',
+  }
+
   const isThemeColor = $derived(themeColorTokens.includes(color as MarkerColor))
   const resolvedThemeColor = $derived(isThemeColor ? (color as MarkerColor) : 'primary')
   const markerColorVar = $derived(`var(--${resolvedThemeColor})`)
@@ -109,18 +126,132 @@
       : '',
   )
   const sizeConfig = $derived(sizes[size])
+
+  // Group badges by position and compute display state
+  const badgesByPosition = $derived.by(() => {
+    const groups: Record<BadgePosition, MarkerBadge[]> = {
+      'top-right': [],
+      'top-left': [],
+      'bottom-right': [],
+      'bottom-left': [],
+    }
+
+    for (const badge of badges) {
+      const pos = badge.position ?? 'top-right'
+      groups[pos].push(badge)
+    }
+
+    return groups
+  })
+
+  const renderedBadges = $derived.by(() => {
+    const result: Array<{
+      position: BadgePosition
+      icon: string
+      color: string
+      textColor: string
+      label: string
+      count: number
+    }> = []
+
+    for (const [position, positionBadges] of Object.entries(badgesByPosition) as [BadgePosition, MarkerBadge[]][]) {
+      if (positionBadges.length === 0)
+        continue
+
+      const firstBadge = positionBadges[0]
+      const count = positionBadges.length
+
+      if (count === 1 && firstBadge) {
+        // Single badge: show its icon
+        result.push({
+          position,
+          icon: firstBadge.icon,
+          color: firstBadge.color ?? 'bg-zinc-700',
+          textColor: firstBadge.textColor ?? 'text-white',
+          label: firstBadge.label ?? '',
+          count: 1,
+        })
+      }
+      else {
+        // Multiple badges: show count icon (max 9)
+        const displayCount = Math.min(count, 9)
+        const countIcon = numberIcons[displayCount] ?? 'i-ph:number-nine-bold'
+        const allLabels = positionBadges
+          .map(b => b.label)
+          .filter(Boolean)
+          .join(', ')
+
+        result.push({
+          position,
+          icon: countIcon,
+          color: firstBadge?.color ?? 'bg-zinc-700',
+          textColor: firstBadge?.textColor ?? 'text-white',
+          label: count > 9 ? `${allLabels} (+${count - 9} more)` : allLabels,
+          count,
+        })
+      }
+    }
+
+    return result
+  })
+
+  const expandedBadges = $derived.by(() => {
+    const result: Array<{
+      key: string
+      position: BadgePosition
+      icon: string
+      color: string
+      textColor: string
+      label: string
+      index: number
+      total: number
+    }> = []
+
+    for (const [position, positionBadges] of Object.entries(badgesByPosition) as [BadgePosition, MarkerBadge[]][]) {
+      if (positionBadges.length <= 1)
+        continue
+
+      const allLabels = positionBadges
+        .map(b => b.label)
+        .filter(Boolean)
+        .join(', ')
+
+      for (const [index, badge] of positionBadges.entries()) {
+        result.push({
+          key: `${position}-${index}`,
+          position: position as BadgePosition,
+          icon: badge.icon,
+          color: badge.color ?? 'bg-zinc-700',
+          textColor: badge.textColor ?? 'text-white',
+          label: index === 0 ? allLabels : (badge.label ?? ''),
+          index,
+          total: positionBadges.length,
+        })
+      }
+    }
+
+    return result
+  })
+
   // Read clusteredVersion to force re-evaluation when clustered state changes
   const isClustered = $derived.by(() => {
     void ctx.clusteredVersion
     return clusterable && ctx.clusteredMarkerIds.has(markerId)
   })
 
+  // Hide tooltips only when a popup is open (not details panel)
+  const anyPopupOpen = $derived(ctx.activePopupMarkerId !== null)
+
+  // Active state: auto-detect from popup OR manual prop
+  const hasActivePopup = $derived(ctx.activePopupMarkerId === markerId)
+  const isActive = $derived(hasActivePopup || active)
+
   onMount(() => {
     const map = ctx.map
     if (!map || !markerElement)
       return
 
-    ctx.registerMarker({ id: markerId, lngLat, clusterable })
+    ctx.registerMarker({ id: markerId, lngLat, clusterable, size })
 
     marker = new maplibregl.Marker({
       element: markerElement,
@@ -151,7 +282,7 @@
     const hasLngLatChange = !lastLngLat || lastLngLat[0] !== lngLat[0] || lastLngLat[1] !== lngLat[1]
     const hasClusterableChange = lastClusterable === null || lastClusterable !== clusterable
     if (hasLngLatChange || hasClusterableChange) {
-      ctx.updateMarker(markerId, { lngLat, clusterable })
+      ctx.updateMarker(markerId, { lngLat, clusterable, size })
       lastLngLat = [lngLat[0], lngLat[1]]
       lastClusterable = clusterable
     }
@@ -167,14 +298,18 @@
 <div
   bind:this={markerElement}
   class='shadcn-marker {size} {className}'
-  class:pulse
   class:has-label={!!label}
+  class:popup-open={anyPopupOpen}
+  class:marker-active={isActive}
   data-color-mode={isThemeColor ? 'theme' : 'class'}
   style:--marker-color={isThemeColor ? markerColorVar : 'currentColor'}
   style:--marker-text={isThemeColor ? markerTextVar : undefined}
   style:--marker-width='{sizeConfig.width}px'
   style:--marker-height='{sizeConfig.height}px'
   style:--icon-size='{sizeConfig.iconSize}px'
+  style:--badge-size='{sizeConfig.badgeSize}px'
+  style:--badge-icon-size='{sizeConfig.badgeIconSize}px'
+  style:--badge-offset='{sizeConfig.badgeOffset}px'
   style:display={isClustered ? 'none' : undefined}
   onclick={() => onclick?.()}
   onkeydown={e => e.key === 'Enter' && onclick?.()}
@@ -184,13 +319,37 @@
   aria-hidden={isClustered ? 'true' : undefined}
   data-label={label}
 >
-  <div class='marker-inner {markerColorClass} {markerTextClass}'>
+  <div class='marker-inner {markerColorClass} {markerTextClass} {isActive && ringColor ? `ring-4 ${ringColor}` : ''}' class:active-ring={isActive && ringColor} class:theme-ring={isActive && isThemeColor && !ringColor} class:fallback-ring={isActive && !ringColor && !isThemeColor}>
     {#if icon}
       <span class='marker-icon {icon}' aria-hidden='true'></span>
     {:else}
       <div class='marker-dot'></div>
     {/if}
   </div>
+
+  {#each renderedBadges as badge (badge.position)}
+    <div
+      class='marker-badge {badge.color} {badge.textColor}'
+      class:has-expanded={badge.count > 1}
+      data-position={badge.position}
+      title={badge.label}
+    >
+      <span class='badge-icon {badge.icon}' aria-hidden='true'></span>
+    </div>
+  {/each}
+
+  {#each expandedBadges as badge (badge.key)}
+    <div
+      class='marker-badge marker-badge-expanded {badge.color} {badge.textColor}'
+      data-position={badge.position}
+      data-index={badge.index}
+      data-total={badge.total}
+      title={badge.label}
+      style:--badge-index={badge.index}
+    >
+      <span class='badge-icon {badge.icon}' aria-hidden='true'></span>
+    </div>
+  {/each}
 </div>
 
 <style>
@@ -208,6 +367,10 @@
     transform: scale(1.1);
   }
 
+  .shadcn-marker.marker-active:hover {
+    transform: scale(1);
+  }
+
   .shadcn-marker:focus-visible {
     outline: 2px solid oklch(var(--marker-color));
     outline-offset: 2px;
@@ -221,7 +384,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    /* Use UnoCSS shadow vars so `ring-*` (also box-shadow) can coexist. */
+    --un-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow:
+      var(--un-ring-shadow, 0 0 #0000),
+      var(--un-shadow, 0 0 #0000);
     transition: box-shadow 0.15s ease;
   }
 
@@ -240,7 +407,12 @@
   }
 
   .shadcn-marker:hover .marker-inner {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --un-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Keep active visuals stable: no hover shadow changes (prevents flicker). */
+  .shadcn-marker.marker-active:hover .marker-inner {
+    --un-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
   .marker-dot {
@@ -258,17 +430,106 @@
     justify-content: center;
   }
 
-  .pulse .marker-inner {
-    animation: pulse 2s ease-in-out infinite;
+  /* Badge styles */
+  .marker-badge {
+    position: absolute;
+    width: var(--badge-size);
+    height: var(--badge-size);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    pointer-events: auto;
+    cursor: default;
+    z-index: 1;
+    transition: opacity 0.2s ease, transform 0.2s ease;
   }
 
-  @keyframes pulse {
-    0%, 100% {
-      box-shadow: 0 0 0 0 color-mix(in oklch, oklch(var(--marker-color)) 50%, transparent);
-    }
-    50% {
-      box-shadow: 0 0 0 10px transparent;
-    }
+  .marker-badge[data-position='top-right'] {
+    top: calc(var(--badge-offset) * -1);
+    right: calc(var(--badge-offset) * -1);
+  }
+
+  .marker-badge[data-position='top-left'] {
+    top: calc(var(--badge-offset) * -1);
+    left: calc(var(--badge-offset) * -1);
+  }
+
+  .marker-badge[data-position='bottom-right'] {
+    bottom: calc(var(--badge-offset) * -1);
+    right: calc(var(--badge-offset) * -1);
+  }
+
+  .marker-badge[data-position='bottom-left'] {
+    bottom: calc(var(--badge-offset) * -1);
+    left: calc(var(--badge-offset) * -1);
+  }
+
+  /* Expanded badges: hidden by default, spread on hover */
+  .marker-badge-expanded {
+    --badge-spread: calc(var(--badge-size) + 4px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Spread direction based on position */
+  .marker-badge-expanded[data-position='top-right'] {
+    transform: translateX(0);
+  }
+
+  .marker-badge-expanded[data-position='top-left'] {
+    transform: translateX(0);
+  }
+
+  .marker-badge-expanded[data-position='bottom-right'] {
+    transform: translateX(0);
+  }
+
+  .marker-badge-expanded[data-position='bottom-left'] {
+    transform: translateX(0);
+  }
+
+  /* On hover: show expanded badges with spread */
+  .shadcn-marker:hover .marker-badge-expanded {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+  }
+
+  .shadcn-marker:hover .marker-badge-expanded[data-position='top-right'] {
+    transform: translateX(calc(var(--badge-spread) * var(--badge-index)));
+  }
+
+  .shadcn-marker:hover .marker-badge-expanded[data-position='top-left'] {
+    transform: translateX(calc(var(--badge-spread) * var(--badge-index) * -1));
+  }
+
+  .shadcn-marker:hover .marker-badge-expanded[data-position='bottom-right'] {
+    transform: translateX(calc(var(--badge-spread) * var(--badge-index)));
+  }
+
+  .shadcn-marker:hover .marker-badge-expanded[data-position='bottom-left'] {
+    transform: translateX(calc(var(--badge-spread) * var(--badge-index) * -1));
+  }
+
+  /* Hide the count badge on hover when there are expanded badges */
+  .shadcn-marker:hover .marker-badge.has-expanded {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .badge-icon {
+    font-size: var(--badge-icon-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  :global(.dark) .marker-badge {
+    border-color: rgba(0, 0, 0, 0.3);
   }
 
   .has-label::after {
@@ -286,11 +547,44 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease;
-    z-index: 10;
+    z-index: 100;
   }
 
   .has-label:hover::after {
     opacity: 1;
+  }
+
+  .popup-open.has-label::after {
+    display: none;
+  }
+
+  .marker-active {
+    z-index: 10;
+  }
+
+  .theme-ring {
+    transform: scale(1.15);
+    box-shadow:
+      0 0 0 4px color-mix(in oklch, oklch(var(--marker-color)) 50%, transparent),
+      0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+
+  .active-ring {
+    transform: scale(1.15);
+    --un-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+
+  .fallback-ring {
+    transform: scale(1.15);
+    box-shadow:
+      0 0 0 4px rgba(260, 260, 260, 0.9),
+      0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+
+  :global(.dark) .fallback-ring {
+    box-shadow:
+      0 0 0 4px rgba(50, 50, 50, 0.9),
+      0 6px 20px rgba(0, 0, 0, 0.35);
   }
 
   :global(.dark) .has-label::after {

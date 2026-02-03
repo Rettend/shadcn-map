@@ -1,191 +1,312 @@
 <script lang='ts'>
-  import type { MarkerProps } from 'shadcn-map'
-  import { DetailsPanel, Map, Marker, NavigationControl, Popup, ScaleControl } from 'shadcn-map'
+  import type { MapLibreMap, MarkerBadge } from 'shadcn-map'
 
-  type Marker = MarkerProps & {
-    id: number
-    name: string
-    description: string
-    detailMode: 'popup' | 'panel'
+  import DesktopSidebar from '$lib/components/locator/DesktopSidebar.svelte'
+  import MobilePanel from '$lib/components/locator/MobilePanel.svelte'
+  import { washes } from '$lib/data/washes'
+  import { createWashesStore } from '$lib/stores/washes.svelte'
+  import { GeolocateControl, Map as MapView, Marker, NavigationControl, Popup, ScaleControl } from 'shadcn-map'
+
+  const store = createWashesStore(washes)
+  let mapRef = $state<MapLibreMap | null>(null)
+
+  let isMobile = $state(false)
+
+  function updateViewportFromMap() {
+    if (!mapRef)
+      return
+    const c = mapRef.getCenter()
+    store.mapCenter = [c.lng, c.lat]
+    const b = mapRef.getBounds()
+    store.mapBounds = {
+      sw: [b.getWest(), b.getSouth()],
+      ne: [b.getEast(), b.getNorth()],
+    }
   }
 
-  // Demo marker locations
-  const markers = [
-    {
-      id: 1,
-      lngLat: [19.0456, 47.5071],
-      name: 'Parliament',
-      description: 'Gothic Revival landmark on the Danube.',
-      color: 'bg-violet-500 dark:bg-violet-600',
-      icon: 'i-ph:building-bold',
-      detailMode: 'popup',
-    },
-    {
-      id: 2,
-      lngLat: [19.0437, 47.4989],
-      name: 'Chain Bridge',
-      description: 'Iconic suspension bridge linking Buda and Pest.',
-      color: 'bg-sky-500 dark:bg-sky-600',
-      icon: 'i-ph:bridge-bold',
-      detailMode: 'popup',
-    },
-    {
-      id: 3,
-      lngLat: [19.0397, 47.4961],
-      name: 'Buda Castle',
-      description: 'Historic royal palace with sweeping views.',
-      color: 'bg-green-500 dark:bg-green-600',
-      icon: 'i-ph:castle-turret-bold',
-      detailMode: 'panel',
-    },
-    {
-      id: 4,
-      lngLat: [19.0778, 47.5150],
-      name: 'Heroes Square',
-      description: 'Monumental square with statues and museums.',
-      color: 'bg-orange-500 dark:bg-orange-600',
-      icon: 'i-ph:park-bold',
-      detailMode: 'panel',
-    },
-    {
-      id: 5,
-      lngLat: [19.2617, 47.4336],
-      name: 'Airport',
-      description: 'Budapest Ferenc Liszt International Airport.',
-      color: 'bg-rose-500 dark:bg-rose-600',
-      icon: 'i-ph:airplane-bold',
-      detailMode: 'panel',
-    },
-    {
-      id: 6,
-      lngLat: [19.0818, 47.4734],
-      name: 'Custom',
-      description: 'Custom UnoCSS marker example.',
-      color: 'bg-blue-800 dark:bg-blue-900',
-      icon: 'i-custom:yuo',
-      detailMode: 'popup',
-    },
-  ] satisfies Marker[]
+  function getCameraOffsetPx(map: MapLibreMap): [number, number] {
+    const container = map.getContainer()
+    const w = container.clientWidth
+    const h = container.clientHeight
 
-  const clusterBase: [number, number] = [19.063, 47.515]
-  const gridMarkers = Array.from({ length: 24 }, (_, index) => {
-    const row = Math.floor(index / 6) - 2
-    const col = (index % 6) - 3
-    return {
-      id: `grid-${index + 1}`,
-      lngLat: [clusterBase[0] + col * 0.003, clusterBase[1] + row * 0.003],
+    if (isMobile) {
+      const drawerH = store.drawerCollapsed
+        ? (52 + 12) // header + bottom margin
+        : ((store.drawerExpanded ? 0.6 : 0.3) * h + 12) // panel height + bottom margin
+      return [0, -drawerH / 2]
     }
-  }) satisfies Array<{ id: string, lngLat: [number, number] }>
 
-  let selected = $state<Marker | null>(null)
-  let suppressMapClick = $state(false)
+    // Desktop: left sidebar overlays the map; center within the remaining visible area.
+    const sidebarW = Math.min(w * 0.92, 380) + 12 // width + left margin
+    return [sidebarW / 2, 0]
+  }
 
-  function markInteraction() {
-    suppressMapClick = true
-    queueMicrotask(() => {
-      suppressMapClick = false
+  function getFitPaddingPx(map: MapLibreMap) {
+    const container = map.getContainer()
+    const w = container.clientWidth
+    const h = container.clientHeight
+
+    if (isMobile) {
+      const bottom = store.drawerCollapsed
+        ? 96
+        : Math.round((store.drawerExpanded ? 0.6 : 0.3) * h + 24)
+      return { top: 80, left: 24, right: 24, bottom }
+    }
+
+    const sidebarW = Math.min(w * 0.92, 380)
+    return { top: 80, left: Math.round(sidebarW + 48), right: 24, bottom: 80 }
+  }
+
+  function centerOnId(id: string, zoom = 15) {
+    store.selectedId = id
+    const loc = store.all.find(w => w.id === id)
+    if (!loc || !mapRef)
+      return
+
+    mapRef.easeTo({
+      center: loc.lngLat,
+      zoom,
+      duration: 450,
+      offset: getCameraOffsetPx(mapRef),
     })
   }
 
-  function handleMapClick() {
-    if (suppressMapClick) {
+  function openDetailsForId(id: string) {
+    centerOnId(id, 15)
+    if (isMobile) {
+      store.drawerMode = 'details'
+      store.drawerExpanded = true
+      store.drawerCollapsed = false
+    }
+  }
+
+  function closeDetailsMobile() {
+    store.drawerMode = 'browse'
+    store.drawerExpanded = false
+    store.drawerCollapsed = false
+    store.selectedId = null
+  }
+
+  function backDesktop() {
+    store.selectedId = null
+  }
+
+  function handleSearchSubmit() {
+    if (!mapRef)
+      return
+    if (store.results.length === 0)
+      return
+    if (store.results.length === 1) {
+      mapRef.easeTo({
+        center: store.results[0]!.lngLat,
+        zoom: 13,
+        duration: 500,
+        offset: getCameraOffsetPx(mapRef),
+      })
       return
     }
-    selected = null
+
+    let minLng = Number.POSITIVE_INFINITY
+    let minLat = Number.POSITIVE_INFINITY
+    let maxLng = Number.NEGATIVE_INFINITY
+    let maxLat = Number.NEGATIVE_INFINITY
+    for (const r of store.results) {
+      minLng = Math.min(minLng, r.lngLat[0])
+      minLat = Math.min(minLat, r.lngLat[1])
+      maxLng = Math.max(maxLng, r.lngLat[0])
+      maxLat = Math.max(maxLat, r.lngLat[1])
+    }
+
+    mapRef.fitBounds(
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
+      {
+        padding: getFitPaddingPx(mapRef),
+        duration: 550,
+        maxZoom: 13,
+      },
+    )
   }
 
-  function handleMarkerClick(marker: Marker) {
-    markInteraction()
-    selected = marker
+  $effect(() => {
+    if (typeof window === 'undefined')
+      return
+    const media = window.matchMedia('(max-width: 640px)')
+    const update = () => {
+      isMobile = media.matches
+      // When switching from mobile -> desktop, exit the mobile details mode.
+      if (!isMobile) {
+        store.drawerMode = 'browse'
+        store.drawerExpanded = false
+      }
+    }
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  })
+
+  const selected = $derived.by(() => store.all.find(w => w.id === store.selectedId) ?? null)
+
+  function ensureVisibleWhenOpeningMobileDrawer(lngLat: [number, number]) {
+    if (!isMobile || !mapRef) {
+      return
+    }
+
+    const container = mapRef.getContainer()
+    const h = container.clientHeight
+    const drawerH = 0.6 * h + 12 // drawer is opening to 60vh + bottom margin
+
+    const p = mapRef.project(lngLat)
+    const gap = 48
+    const safeBottom = h - drawerH - gap
+    if (p.y <= safeBottom) {
+      return
+    }
+
+    const delta = p.y - safeBottom
+    // Move the map just enough so the marker ends up above the opening drawer.
+    mapRef.panBy([0, delta], { duration: 260 })
   }
+
+  const markerBadgesById = $derived.by(() => {
+    const map = new Map<string, MarkerBadge[]>()
+    for (const w of store.filtered) {
+      const badges: MarkerBadge[] = []
+      if (w.hasVacuum)
+        badges.push({ icon: 'i-ph:broom-fill', color: 'bg-violet-700', label: 'Vacuum', position: 'top-right' })
+      if (w.hasAutomatic)
+        badges.push({ icon: 'i-ph:robot', color: 'bg-violet-700', label: 'Automatic', position: 'top-right' })
+      if (w.hasCardPayment)
+        badges.push({ icon: 'i-ph:credit-card', color: 'bg-violet-700', label: 'Card', position: 'top-right' })
+      map.set(w.id, badges)
+    }
+    return map
+  })
 </script>
 
-<div class='h-full w-full relative'>
-  <Map
+<div
+  class={`controls-host h-full w-full relative ${isMobile ? 'is-mobile' : ''}`}
+  style={`--mobile-controls-bottom: ${
+    isMobile
+      ? (store.drawerCollapsed ? '56px' : (store.drawerExpanded ? '60vh' : '30vh'))
+      : '0px'
+  };`}
+>
+  <MapView
     tiles='https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles'
     center={[19.0402, 47.4979]}
     zoom={12}
-    onclick={handleMapClick}
+    labels='roads'
     autoCluster
-    autoClusterRadius={60}
+    autoClusterRadius={50}
     autoClusterMaxZoom={13}
+    onload={(m) => {
+      mapRef = m
+      updateViewportFromMap()
+    }}
+    onmove={() => {
+      updateViewportFromMap()
+    }}
+    onclick={() => {
+      if (isMobile) {
+        // Map click on mobile closes details mode.
+        if (store.drawerMode === 'details') {
+          closeDetailsMobile()
+          store.selectedId = null
+        }
+      }
+      else {
+        store.selectedId = null
+      }
+    }}
   >
-    {#each markers as marker (marker.id)}
+    {#each store.filtered as w (w.id)}
       <Marker
-        lngLat={marker.lngLat}
-        color={marker.color}
-        icon={marker.icon}
-        label={marker.name}
-        pulse={selected?.id === marker.id}
-        onclick={() => handleMarkerClick(marker)}
+        lngLat={w.lngLat}
+        color='bg-violet-600 dark:bg-violet-600'
+        textColor='text-white'
+        ringColor='ring-violet-500/50'
+        icon='i-custom:yuo'
+        label={w.name}
+        badges={markerBadgesById.get(w.id) ?? []}
+        active={store.selectedId === w.id}
+        onclick={() => {
+          store.selectedId = w.id
+          if (isMobile) {
+            ensureVisibleWhenOpeningMobileDrawer(w.lngLat)
+            store.drawerMode = 'details'
+            store.drawerExpanded = true
+            store.drawerCollapsed = false
+          }
+        }}
       />
     {/each}
 
-    {#each gridMarkers as marker (marker.id)}
-      <Marker
-        lngLat={marker.lngLat}
-        color='bg-sky-500 dark:bg-sky-600'
-        size='sm'
-      />
-    {/each}
-
-    {#if selected?.detailMode === 'popup'}
+    {#if !isMobile && selected}
       <Popup
         lngLat={selected.lngLat}
         open
         onclose={() => {
-          selected = null
+          store.selectedId = null
         }}
       >
         <div class='text-sm font-semibold'>{selected.name}</div>
-        <div class='text-xs text-muted-foreground'>{selected.description}</div>
-        <a
-          href='https://www.google.com/maps/dir/?api=1&destination={selected.lngLat[1]},{selected.lngLat[0]}'
-          target='_blank'
-          rel='noopener noreferrer'
-          class='text-xs text-primary-foreground px-2.5 py-1.5 rounded-md bg-primary inline-flex gap-1.5 transition-colors items-center hover:bg-primary/90'
-        >
-          <span class='i-ph-navigation'></span>
-          Directions
-        </a>
+        <div class='text-xs text-muted-foreground'>{selected.address}, {selected.city}</div>
       </Popup>
     {/if}
 
     <NavigationControl position='bottom-right' />
+    <GeolocateControl
+      position='bottom-right'
+      zoom={14}
+      onlocate={() => {
+        // When we locate, refresh ordering.
+        updateViewportFromMap()
+      }}
+    />
     <ScaleControl position='bottom-left' />
-  </Map>
+  </MapView>
 
-  <DetailsPanel
-    open={selected?.detailMode === 'panel'}
-    ariaLabel={selected ? `${selected.name} details` : 'Details panel'}
-    onclose={() => {
-      selected = null
-    }}
-  >
-    {#if selected?.detailMode === 'panel'}
-      <div class='space-y-3'>
-        <div>
-          <h2 class='text-lg text-foreground font-semibold'>{selected.name}</h2>
-          <p class='text-sm text-muted-foreground mt-1'>{selected.description}</p>
-        </div>
-        <div class='text-sm text-muted-foreground'>
-          Coordinates: {selected.lngLat[1].toFixed(4)}, {selected.lngLat[0].toFixed(4)}
-        </div>
-        <a
-          href='https://www.google.com/maps/dir/?api=1&destination={selected.lngLat[1]},{selected.lngLat[0]}'
-          target='_blank'
-          rel='noopener noreferrer'
-          class='text-sm text-primary-foreground px-3 py-1.5 rounded-md bg-primary inline-flex gap-1.5 transition-colors items-center hover:bg-primary/90'
-        >
-          <span class='i-ph-navigation'></span>
-          Directions
-        </a>
-      </div>
-    {:else}
-      <div class='text-sm text-muted-foreground'>
-        Select a marker to open the details panel.
-      </div>
-    {/if}
-  </DetailsPanel>
-
+  {#if isMobile}
+    <MobilePanel
+      store={store}
+      results={store.results}
+      selected={selected}
+      onSelect={id => centerOnId(id, 14)}
+      onCloseDetails={closeDetailsMobile}
+      onSearchSubmit={handleSearchSubmit}
+      onQueryChange={q => (store.query = q)}
+      onFiltersChange={f => (store.filters = f)}
+      onToggleExpanded={() => {
+        // Expand toggles 30% <-> 60%. If the panel is collapsed, restore it to the default 30% state.
+        if (store.drawerCollapsed) {
+          store.drawerCollapsed = false
+          store.drawerExpanded = false
+          return
+        }
+        store.drawerExpanded = !store.drawerExpanded
+      }}
+    />
+  {:else}
+    <DesktopSidebar
+      store={store}
+      results={store.results}
+      selected={selected}
+      onSelect={id => openDetailsForId(id)}
+      onBack={backDesktop}
+      onSearchSubmit={handleSearchSubmit}
+      onQueryChange={q => (store.query = q)}
+      onFiltersChange={f => (store.filters = f)}
+    />
+  {/if}
 </div>
+
+<style>
+  /* Mobile: the bottom drawer would cover map controls. Push bottom controls up to the top edge of the drawer. */
+  :global(.controls-host.is-mobile .shadcn-map .maplibregl-ctrl-bottom-left),
+  :global(.controls-host.is-mobile .shadcn-map .maplibregl-ctrl-bottom-right) {
+    bottom: calc(var(--mobile-controls-bottom) + 20px);
+  }
+</style>

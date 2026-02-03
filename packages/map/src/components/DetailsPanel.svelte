@@ -10,6 +10,8 @@
     class?: string
     /** Accessible label */
     ariaLabel?: string
+    /** Height mode - 'fit' for content height, 'full' for nearly full height */
+    height?: 'fit' | 'full'
     /** Children */
     children?: Snippet
   }
@@ -17,23 +19,17 @@
 
 <script lang='ts'>
   import { onMount } from 'svelte'
-  import * as Drawer from './ui/drawer'
 
   const {
     open = false,
     onclose,
     class: className = '',
     ariaLabel = 'Details panel',
+    height = 'full',
     children,
   }: DetailsPanelProps = $props()
 
   let isMobile = $state(false)
-
-  function handleDrawerOpenChange(isOpen: boolean) {
-    if (!isOpen) {
-      onclose?.()
-    }
-  }
 
   onMount(() => {
     if (typeof window === 'undefined') {
@@ -53,8 +49,9 @@
     }
   })
 
+  // Keyboard escape to close
   $effect(() => {
-    if (typeof window === 'undefined' || !open || isMobile) {
+    if (typeof window === 'undefined' || !open) {
       return
     }
 
@@ -72,29 +69,25 @@
   })
 </script>
 
-{#if isMobile}
-  <Drawer.Root {open} onOpenChange={handleDrawerOpenChange}>
-    <Drawer.Content class='shadcn-details-drawer {className}' aria-label={ariaLabel}>
-      <div class='shadcn-details-content'>
-        {#if children}
-          {@render children()}
-        {/if}
-      </div>
-    </Drawer.Content>
-  </Drawer.Root>
-{:else if open}
-  <button
-    type='button'
-    class='shadcn-details-overlay shadcn-details-overlay--desktop'
-    aria-label='Close details panel'
-    onclick={() => onclose?.()}
-  ></button>
+{#if open}
   <div
     class='shadcn-details-panel {className}'
-    role='dialog'
-    aria-modal='true'
+    data-device={isMobile ? 'mobile' : 'desktop'}
+    data-height={height}
+    role='complementary'
     aria-label={ariaLabel}
   >
+    <button
+      type='button'
+      class='shadcn-details-close'
+      aria-label='Close panel'
+      onclick={() => onclose?.()}
+    >
+      <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+        <path d='M18 6 6 18' /><path d='m6 6 12 12' />
+      </svg>
+    </button>
+
     <div class='shadcn-details-content'>
       {#if children}
         {@render children()}
@@ -104,54 +97,83 @@
 {/if}
 
 <style>
-  .shadcn-details-overlay {
-    background: rgba(0, 0, 0, 0.35);
-    z-index: 20;
-  }
-
-  .shadcn-details-overlay--desktop {
-    position: absolute;
-    inset: 0;
-  }
-
-  .shadcn-details-overlay--mobile {
-    position: fixed;
-    inset: 0;
-  }
-
   .shadcn-details-panel {
     position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: min(90vw, 360px);
     background: oklch(var(--card));
     color: oklch(var(--card-foreground));
-    border-right: 1px solid oklch(var(--border));
-    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.25);
-    z-index: 30;
+    border: 1px solid oklch(var(--border));
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
+    z-index: 10;
+    pointer-events: auto;
   }
 
-  .shadcn-details-drawer {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    max-height: 85vh;
-    background: oklch(var(--card));
-    color: oklch(var(--card-foreground));
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    border: 1px solid oklch(var(--border));
-    box-shadow: 0 -12px 24px rgba(0, 0, 0, 0.25);
+  /* Desktop: Left side floating panel */
+  .shadcn-details-panel[data-device='desktop'] {
+    top: 12px;
+    left: 12px;
+    width: min(90vw, 360px);
+  }
+
+  .shadcn-details-panel[data-device='desktop'][data-height='full'] {
+    bottom: 52px;
+    max-height: calc(100% - 64px);
+  }
+
+  .shadcn-details-panel[data-device='desktop'][data-height='fit'] {
+    bottom: auto;
+    max-height: calc(100% - 64px);
+  }
+
+  /* Mobile: Bottom floating card */
+  .shadcn-details-panel[data-device='mobile'] {
+    left: 12px;
+    right: 12px;
+    bottom: 52px;
+  }
+
+  .shadcn-details-panel[data-device='mobile'][data-height='full'] {
+    max-height: 45vh;
+  }
+
+  .shadcn-details-panel[data-device='mobile'][data-height='fit'] {
+    max-height: 60vh;
+    height: auto;
+  }
+
+  .shadcn-details-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: oklch(var(--muted));
+    color: oklch(var(--muted-foreground));
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+    z-index: 1;
+  }
+
+  .shadcn-details-close:hover {
+    background: oklch(var(--accent));
+    color: oklch(var(--accent-foreground));
+  }
+
+  .shadcn-details-close:focus-visible {
+    outline: 2px solid oklch(var(--ring));
+    outline-offset: 2px;
   }
 
   .shadcn-details-content {
     padding: 20px;
+    padding-top: 16px;
     overflow: auto;
     height: 100%;
   }

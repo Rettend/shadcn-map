@@ -10,8 +10,8 @@
     onclose?: () => void
     /** Additional CSS classes */
     class?: string
-    /** Offset from anchor point */
-    offset?: number | [number, number]
+    /** Offset from anchor point (number = uniform, array = [x, y], or 'auto' for auto-detected) */
+    offset?: number | [number, number] | 'auto'
     /** Children */
     children?: Snippet
   }
@@ -27,7 +27,7 @@
     open = true,
     onclose,
     class: className = '',
-    offset = 8,
+    offset = 'auto',
     children,
   }: PopupProps = $props()
 
@@ -36,9 +36,37 @@
   let popup: maplibregl.Popup | null = null
   let contentElement: HTMLDivElement
   let programmaticClose = false
+  let lastActiveMarkerId: string | null = null
+
+  const sizeOffsets: Record<'sm' | 'md' | 'lg', [number, number]> = {
+    sm: [0, -12],
+    md: [0, -16],
+    lg: [0, -20],
+  }
+
+  const markerAtLocation = $derived.by(() => {
+    for (const marker of ctx.markers.values()) {
+      const lngDiff = Math.abs(marker.lngLat[0] - lngLat[0])
+      const latDiff = Math.abs(marker.lngLat[1] - lngLat[1])
+      if (lngDiff < 0.000001 && latDiff < 0.000001) {
+        return marker
+      }
+    }
+    return null
+  })
+
+  const detectedMarkerSize = $derived(markerAtLocation?.size ?? 'md')
+
+  const computedOffset = $derived.by((): number | [number, number] => {
+    if (offset !== 'auto') {
+      return offset
+    }
+    return sizeOffsets[detectedMarkerSize]
+  })
 
   function handleClose() {
     if (!programmaticClose) {
+      ctx.setActivePopupMarker(null)
       onclose?.()
     }
   }
@@ -63,7 +91,7 @@
     popup = new maplibregl.Popup({
       closeButton: true,
       closeOnClick: true,
-      offset,
+      offset: computedOffset,
       anchor: 'bottom',
       className: 'shadcn-map-popup',
     })
@@ -77,6 +105,11 @@
     }
 
     return () => {
+      // If this popup is being unmounted while open, MapLibre won't necessarily emit a "close"
+      // event (we detach the listener before remove). Ensure the marker active state is cleared.
+      if (lastActiveMarkerId && ctx.activePopupMarkerId === lastActiveMarkerId) {
+        ctx.setActivePopupMarker(null)
+      }
       popup?.off('close', handleClose)
       popup?.remove()
       popup = null
@@ -91,7 +124,7 @@
 
   $effect(() => {
     if (popup) {
-      popup.setOffset(offset)
+      popup.setOffset(computedOffset)
     }
   })
 
@@ -105,9 +138,21 @@
       if (!popup.isOpen()) {
         popup.addTo(map)
       }
+      if (markerAtLocation) {
+        ctx.setActivePopupMarker(markerAtLocation.id)
+        lastActiveMarkerId = markerAtLocation.id
+      }
     }
     else if (popup.isOpen()) {
       closePopup()
+    }
+  })
+
+  $effect(() => {
+    if (!open) {
+      if (markerAtLocation && ctx.activePopupMarkerId === markerAtLocation.id) {
+        ctx.setActivePopupMarker(null)
+      }
     }
   })
 </script>
@@ -122,6 +167,10 @@
   .shadcn-popup-content {
     display: grid;
     gap: 6px;
+  }
+
+  :global(.shadcn-map-popup) {
+    z-index: 20 !important;
   }
 
   :global(.shadcn-map-popup .maplibregl-popup-content) {

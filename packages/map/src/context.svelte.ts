@@ -7,6 +7,18 @@ export interface MarkerRegistration {
   id: string
   lngLat: [number, number]
   clusterable: boolean
+  size?: 'sm' | 'md' | 'lg'
+}
+
+export interface FlyToOptions {
+  zoom?: number
+  duration?: number
+  easing?: (t: number) => number
+}
+
+export interface LngLatBounds {
+  sw: [number, number]
+  ne: [number, number]
 }
 
 export interface MapContextStore {
@@ -15,12 +27,18 @@ export interface MapContextStore {
   readonly markers: Map<string, MarkerRegistration>
   readonly clusteredMarkerIds: Set<string>
   readonly clusteredVersion: number
+  readonly activePopupMarkerId: string | null
   setMap: (map: maplibregl.Map | null) => void
   setLoaded: (loaded: boolean) => void
   registerMarker: (registration: MarkerRegistration) => void
   updateMarker: (id: string, updates: Partial<MarkerRegistration>) => void
   unregisterMarker: (id: string) => void
   setClusteredMarkers: (ids: Set<string>) => void
+  setActivePopupMarker: (id: string | null) => void
+  flyTo: (lngLat: [number, number], options?: FlyToOptions) => void
+  getBounds: () => LngLatBounds | null
+  getCenter: () => [number, number] | null
+  getZoom: () => number | null
 }
 
 export function createMapContext(): MapContextStore {
@@ -29,6 +47,7 @@ export function createMapContext(): MapContextStore {
   let markers = $state(new Map<string, MarkerRegistration>())
   let clusteredMarkerIds = $state(new Set<string>())
   let clusteredVersion = $state(0)
+  let activePopupMarkerId = $state<string | null>(null)
 
   const store: MapContextStore = {
     get map() { return map },
@@ -36,6 +55,7 @@ export function createMapContext(): MapContextStore {
     get markers() { return markers },
     get clusteredMarkerIds() { return clusteredMarkerIds },
     get clusteredVersion() { return clusteredVersion },
+    get activePopupMarkerId() { return activePopupMarkerId },
     setMap: (m) => { map = m },
     setLoaded: (l) => { loaded = l },
     registerMarker: (registration) => {
@@ -51,7 +71,8 @@ export function createMapContext(): MapContextStore {
       const nextEntry = { ...existing, ...updates }
       const lngLatChanged = existing.lngLat[0] !== nextEntry.lngLat[0] || existing.lngLat[1] !== nextEntry.lngLat[1]
       const clusterableChanged = existing.clusterable !== nextEntry.clusterable
-      if (!lngLatChanged && !clusterableChanged) {
+      const sizeChanged = existing.size !== nextEntry.size
+      if (!lngLatChanged && !clusterableChanged && !sizeChanged) {
         return
       }
       const next = new Map(markers)
@@ -66,6 +87,44 @@ export function createMapContext(): MapContextStore {
     setClusteredMarkers: (ids) => {
       clusteredMarkerIds = new Set(ids)
       clusteredVersion++
+    },
+    setActivePopupMarker: (id) => {
+      activePopupMarkerId = id
+    },
+    flyTo: (lngLat, options) => {
+      if (!map) {
+        return
+      }
+
+      map.easeTo({
+        center: lngLat,
+        zoom: options?.zoom,
+        duration: options?.duration,
+        easing: options?.easing,
+      })
+    },
+    getBounds: () => {
+      if (!map) {
+        return null
+      }
+      const bounds = map.getBounds()
+      return {
+        sw: [bounds.getWest(), bounds.getSouth()],
+        ne: [bounds.getEast(), bounds.getNorth()],
+      }
+    },
+    getCenter: () => {
+      if (!map) {
+        return null
+      }
+      const center = map.getCenter()
+      return [center.lng, center.lat]
+    },
+    getZoom: () => {
+      if (!map) {
+        return null
+      }
+      return map.getZoom()
     },
   }
 

@@ -41,13 +41,9 @@
         "vite": "^7.2.6",
       },
       "peerDependencies": {
-        "bits-ui": "^2.0.0",
         "mode-watcher": "^1.0.0",
         "svelte": "^5.0.0",
       },
-      "optionalPeers": [
-        "bits-ui",
-      ],
     },
     "packages/playground": {
       "name": "playground",

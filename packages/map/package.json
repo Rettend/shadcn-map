@@ -19,21 +19,15 @@
     "dist"
   ],
   "scripts": {
-    "dev": "vite build --watch",
+    "dev": "svelte-package -i src -w",
     "build": "svelte-package -i src",
     "lint": "eslint . --fix",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
     "release": "bumpp && bun run build && bun publish"
   },
   "peerDependencies": {
-    "bits-ui": "^2.0.0",
     "mode-watcher": "^1.0.0",
     "svelte": "^5.0.0"
-  },
-  "peerDependenciesMeta": {
-    "bits-ui": {
-      "optional": true
-    }
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
