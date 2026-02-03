@@ -1,7 +1,7 @@
 {
   "name": "shadcn-map",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A minimal, fast, dark map library for Svelte 5 built on MapLibre GL and shadcn-svelte aesthetics.",
   "author": "Hegyi Áron Ferenc",
   "license": "MIT",
