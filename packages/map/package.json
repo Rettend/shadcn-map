@@ -2,6 +2,27 @@
   "name": "shadcn-map",
   "type": "module",
   "version": "0.0.1",
+  "description": "A minimal, fast, dark map library for Svelte 5 built on MapLibre GL and shadcn-svelte aesthetics.",
+  "author": "Hegyi Áron Ferenc",
+  "license": "MIT",
+  "homepage": "https://github.com/Rettend/shadcn-map#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rettend/shadcn-map.git",
+    "directory": "packages/map"
+  },
+  "bugs": {
+    "url": "https://github.com/Rettend/shadcn-map/issues"
+  },
+  "keywords": [
+    "svelte",
+    "svelte-5",
+    "map",
+    "maplibre",
+    "maplibre-gl",
+    "shadcn"
+  ],
+  "sideEffects": false,
   "svelte": "./dist/index.js",
   "exports": {
     ".": {
