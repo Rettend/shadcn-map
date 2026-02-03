@@ -28,6 +28,8 @@ export interface MapContextStore {
   readonly clusteredMarkerIds: Set<string>
   readonly clusteredVersion: number
   readonly activePopupMarkerId: string | null
+  /** The resolved theme mode for the map ('dark' or 'light') */
+  readonly resolvedMode: 'dark' | 'light'
   setMap: (map: maplibregl.Map | null) => void
   setLoaded: (loaded: boolean) => void
   registerMarker: (registration: MarkerRegistration) => void
@@ -35,6 +37,7 @@ export interface MapContextStore {
   unregisterMarker: (id: string) => void
   setClusteredMarkers: (ids: Set<string>) => void
   setActivePopupMarker: (id: string | null) => void
+  setResolvedMode: (mode: 'dark' | 'light') => void
   flyTo: (lngLat: [number, number], options?: FlyToOptions) => void
   getBounds: () => LngLatBounds | null
   getCenter: () => [number, number] | null
@@ -48,6 +51,7 @@ export function createMapContext(): MapContextStore {
   let clusteredMarkerIds = $state(new Set<string>())
   let clusteredVersion = $state(0)
   let activePopupMarkerId = $state<string | null>(null)
+  let resolvedMode = $state<'dark' | 'light'>('dark')
 
   const store: MapContextStore = {
     get map() { return map },
@@ -56,8 +60,10 @@ export function createMapContext(): MapContextStore {
     get clusteredMarkerIds() { return clusteredMarkerIds },
     get clusteredVersion() { return clusteredVersion },
     get activePopupMarkerId() { return activePopupMarkerId },
+    get resolvedMode() { return resolvedMode },
     setMap: (m) => { map = m },
     setLoaded: (l) => { loaded = l },
+    setResolvedMode: (m) => { resolvedMode = m },
     registerMarker: (registration) => {
       const next = new Map(markers)
       next.set(registration.id, registration)
