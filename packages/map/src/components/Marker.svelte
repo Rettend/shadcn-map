@@ -302,6 +302,7 @@
   class:popup-open={anyPopupOpen}
   class:marker-active={isActive}
   data-color-mode={isThemeColor ? 'theme' : 'class'}
+  data-map-mode={ctx.resolvedMode}
   style:--marker-color={isThemeColor ? markerColorVar : 'currentColor'}
   style:--marker-text={isThemeColor ? markerTextVar : undefined}
   style:--marker-width='{sizeConfig.width}px'
@@ -395,14 +396,21 @@
   .shadcn-marker[data-color-mode='theme'] .marker-inner {
     background: oklch(var(--marker-color));
     color: oklch(var(--marker-text));
-    border-color: oklch(var(--border));
+  }
+
+  .shadcn-marker[data-color-mode='theme'][data-map-mode='dark'] .marker-inner {
+    border-color: #3f3f46;
+  }
+
+  .shadcn-marker[data-color-mode='theme'][data-map-mode='light'] .marker-inner {
+    border-color: #e4e4e7;
   }
 
   .shadcn-marker[data-color-mode='class'] .marker-inner {
     border-color: rgba(0, 0, 0, 0.25);
   }
 
-  :global(.dark) .shadcn-marker[data-color-mode='class'] .marker-inner {
+  .shadcn-marker[data-color-mode='class'][data-map-mode='dark'] .marker-inner {
     border-color: rgba(255, 255, 255, 0.25);
   }
 
@@ -528,7 +536,7 @@
     justify-content: center;
   }
 
-  :global(.dark) .marker-badge {
+  .shadcn-marker[data-map-mode='dark'] .marker-badge {
     border-color: rgba(0, 0, 0, 0.3);
   }
 
@@ -581,13 +589,13 @@
       0 6px 20px rgba(0, 0, 0, 0.35);
   }
 
-  :global(.dark) .fallback-ring {
+  .shadcn-marker[data-map-mode='dark'] .fallback-ring {
     box-shadow:
       0 0 0 4px rgba(50, 50, 50, 0.9),
       0 6px 20px rgba(0, 0, 0, 0.35);
   }
 
-  :global(.dark) .has-label::after {
+  .shadcn-marker[data-map-mode='dark'].has-label::after {
     background: hsl(240 5.9% 90%);
     color: hsl(240 10% 3.9%);
   }

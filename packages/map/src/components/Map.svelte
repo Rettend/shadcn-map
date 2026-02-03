@@ -96,17 +96,34 @@
     return document.documentElement.classList.contains('dark')
   }
 
+  // Track document dark mode for auto style
+  let documentIsDark = $state(getIsDarkMode())
+
+  // Resolved mode: for explicit 'dark'/'light' use that, for 'auto' follow document, for custom objects default to 'dark'
+  const resolvedMode = $derived.by((): 'dark' | 'light' => {
+    if (typeof style === 'object') {
+      return 'dark' // Custom style objects default to dark for UI
+    }
+    if (style === 'auto') {
+      return documentIsDark ? 'dark' : 'light'
+    }
+    return style // 'dark' or 'light'
+  })
+
   function getStyle() {
     if (typeof style === 'object') {
       return style
     }
 
-    const mode: StyleMode = style === 'auto' ? (getIsDarkMode() ? 'dark' : 'light') : style
-
-    return mode === 'dark' ? createDarkStyle(tiles, { labels }) : createLightStyle(tiles, { labels })
+    return resolvedMode === 'dark' ? createDarkStyle(tiles, { labels }) : createLightStyle(tiles, { labels })
   }
 
   const ctx = createMapContext()
+
+  // Keep context in sync with resolved mode
+  $effect(() => {
+    ctx.setResolvedMode(resolvedMode)
+  })
   const autoClusterPoints = $derived(
     autoCluster
       ? Array.from(ctx.markers.values())
@@ -183,17 +200,22 @@
       onzoomCallback?.(mapInstance.getZoom())
     })
 
-    const observer = new MutationObserver(() => {
-      mapInstance.setStyle(getStyle())
-    })
+    // Only observe document dark class changes when style='auto'
+    let observer: MutationObserver | null = null
+    if (style === 'auto') {
+      observer = new MutationObserver(() => {
+        documentIsDark = getIsDarkMode()
+        mapInstance.setStyle(getStyle())
+      })
 
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    })
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class'],
+      })
+    }
 
     return () => {
-      observer.disconnect()
+      observer?.disconnect()
       maplibregl.removeProtocol('pmtiles')
       ctx.setMap(null)
       ctx.setLoaded(false)
@@ -202,7 +224,7 @@
   })
 </script>
 
-<div bind:this={container} class='shadcn-map {className}'>
+<div bind:this={container} class='shadcn-map {className}' data-map-mode={resolvedMode}>
   {#if loaded && children}
     {#if autoCluster}
       <ClusterLayer
@@ -267,55 +289,94 @@
     box-shadow: none;
   }
 
-  /* Dark mode theme variables */
-  :global(.dark) .shadcn-map {
-    --map-ui-surface: oklch(var(--muted));
-    --map-ui-foreground: oklch(var(--foreground));
-    --map-ui-border: oklch(var(--border));
+  /* Dark mode theme variables - hardcoded dark colors that don't depend on mode switcher */
+  .shadcn-map[data-map-mode='dark'] {
+    --map-ui-surface: #27272a;
+    --map-ui-foreground: #f4f4f5;
+    --map-ui-border: #3f3f46;
   }
 
-  /* Navigation control group */
-  :global(.dark) .shadcn-map :global(.maplibregl-ctrl-group) {
+  /* Light mode theme variables - hardcoded light colors */
+  .shadcn-map[data-map-mode='light'] {
+    --map-ui-surface: #ffffff;
+    --map-ui-foreground: #18181b;
+    --map-ui-border: #e4e4e7;
+  }
+
+  /* Navigation control group - dark mode */
+  .shadcn-map[data-map-mode='dark'] :global(.maplibregl-ctrl-group) {
     background-color: var(--map-ui-surface);
     border: 1px solid var(--map-ui-border);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
   }
 
-  :global(.dark) .shadcn-map :global(.maplibregl-ctrl-group button) {
+  /* Navigation control group - light mode */
+  .shadcn-map[data-map-mode='light'] :global(.maplibregl-ctrl-group) {
+    background-color: var(--map-ui-surface);
+    border: 1px solid var(--map-ui-border);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  .shadcn-map[data-map-mode='dark'] :global(.maplibregl-ctrl-group button) {
     background-color: var(--map-ui-surface);
     color: var(--map-ui-foreground);
   }
 
-  :global(.dark) .shadcn-map :global(.maplibregl-ctrl-group button + button) {
+  .shadcn-map[data-map-mode='light'] :global(.maplibregl-ctrl-group button) {
+    background-color: var(--map-ui-surface);
+    color: var(--map-ui-foreground);
+  }
+
+  .shadcn-map[data-map-mode='dark'] :global(.maplibregl-ctrl-group button + button) {
     border-top-color: var(--map-ui-border);
   }
 
-  :global(.dark) .shadcn-map :global(.maplibregl-ctrl-icon) {
+  .shadcn-map[data-map-mode='light'] :global(.maplibregl-ctrl-group button + button) {
+    border-top-color: var(--map-ui-border);
+  }
+
+  .shadcn-map[data-map-mode='dark'] :global(.maplibregl-ctrl-icon) {
     filter: invert(1);
   }
 
-  :global(.dark) .shadcn-map :global(.maplibregl-ctrl-compass .maplibregl-ctrl-icon) {
+  .shadcn-map[data-map-mode='dark'] :global(.maplibregl-ctrl-compass .maplibregl-ctrl-icon) {
     filter: invert(1) brightness(1.8) contrast(1.3) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
   }
 
-  /* Scale control dark mode */
-  :global(.dark) .shadcn-map :global(.maplibregl-ctrl-scale) {
+  /* Scale control - dark mode */
+  .shadcn-map[data-map-mode='dark'] :global(.maplibregl-ctrl-scale) {
     color: var(--map-ui-foreground);
     border-color: var(--map-ui-foreground);
   }
 
-  /* Attribution text panel */
-  :global(.dark) .shadcn-map :global(.maplibregl-ctrl-attrib) {
+  /* Scale control - light mode */
+  .shadcn-map[data-map-mode='light'] :global(.maplibregl-ctrl-scale) {
+    color: var(--map-ui-foreground);
+    border-color: var(--map-ui-foreground);
+  }
+
+  /* Attribution text panel - dark mode */
+  .shadcn-map[data-map-mode='dark'] :global(.maplibregl-ctrl-attrib) {
     color: var(--map-ui-foreground);
   }
 
-  :global(.dark) .shadcn-map :global(.maplibregl-ctrl-attrib.maplibregl-compact-show) {
+  /* Attribution text panel - light mode */
+  .shadcn-map[data-map-mode='light'] :global(.maplibregl-ctrl-attrib) {
+    color: var(--map-ui-foreground);
+  }
+
+  .shadcn-map[data-map-mode='dark'] :global(.maplibregl-ctrl-attrib.maplibregl-compact-show) {
+    background-color: var(--map-ui-surface);
+    border-radius: 4px;
+  }
+
+  .shadcn-map[data-map-mode='light'] :global(.maplibregl-ctrl-attrib.maplibregl-compact-show) {
     background-color: var(--map-ui-surface);
     border-radius: 4px;
   }
 
   /* Attribution button - invert icon in dark mode */
-  :global(.dark) .shadcn-map :global(.maplibregl-ctrl-attrib-button) {
+  .shadcn-map[data-map-mode='dark'] :global(.maplibregl-ctrl-attrib-button) {
     filter: invert(1);
   }
 </style>

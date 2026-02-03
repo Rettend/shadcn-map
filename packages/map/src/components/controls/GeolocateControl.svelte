@@ -134,7 +134,7 @@
 
   /* Dark mode: override the filter: invert(1) from Map.svelte since we use inline SVG with currentColor.
    * Also explicitly set color so the SVG stroke inherits the light foreground. */
-  :global(.dark .shadcn-map .shadcn-geolocate-btn.maplibregl-ctrl-icon) {
+  :global(.shadcn-map[data-map-mode='dark'] .shadcn-geolocate-btn.maplibregl-ctrl-icon) {
     filter: none !important;
     color: var(--map-ui-foreground);
   }
