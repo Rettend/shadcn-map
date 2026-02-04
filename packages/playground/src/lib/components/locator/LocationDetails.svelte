@@ -1,8 +1,8 @@
 <script lang='ts'>
-  import type { WashLocation } from '$lib/data/washes'
-  import { isOpenNow } from '$lib/stores/washes.svelte'
+  import type { LocationItem } from '$lib/data/markers.svelte'
+  import { isOpenNow } from '$lib/stores/markers.svelte'
   import { cn } from '$lib/utils'
-  import { formatHours, formatHuf } from './format'
+  import { formatHours } from './format'
 
   const {
     location,
@@ -10,7 +10,7 @@
     showBack = false,
     class: className = '',
   }: {
-    location: WashLocation
+    location: LocationItem
     onBack?: () => void
     showBack?: boolean
     class?: string
@@ -54,46 +54,41 @@
       <div class='text-sm font-medium'>{formatHours(location)}</div>
     </div>
     <div class='p-2 border border-border rounded-lg bg-card'>
-      <div class='text-xs text-muted-foreground'>Price</div>
-      <div class='text-sm font-medium'>{formatHuf(location.pricePerWashHuf)}</div>
-    </div>
-    <div class='p-2 border border-border rounded-lg bg-card'>
-      <div class='text-xs text-muted-foreground'>Bays</div>
-      <div class='text-sm font-medium'>{location.bays}</div>
-    </div>
-    <div class='p-2 border border-border rounded-lg bg-card'>
-      <div class='text-xs text-muted-foreground'>Terminals</div>
-      <div class='text-sm font-medium'>{location.terminals}</div>
+      <div class='text-xs text-muted-foreground'>Score</div>
+      <div class='text-sm font-medium flex gap-1 items-center'>
+        <span class='i-ph:star-fill text-amber-500' aria-hidden='true'></span>
+        {location.score}
+      </div>
     </div>
     <div class='p-2 border border-border rounded-lg bg-card col-span-2'>
-      <div class='text-xs text-muted-foreground'>Max vehicle height</div>
-      <div class='text-sm font-medium'>{location.maxVehicleHeightCm} cm</div>
+      <div class='text-xs text-muted-foreground'>Capacity</div>
+      <div class='text-sm font-medium'>{location.capacity} persons</div>
     </div>
   </div>
 
   <div class='gap-2 grid'>
-    <div class='text-sm font-semibold'>Services</div>
+    <div class='text-sm font-semibold'>Features</div>
     <div class='text-sm flex flex-wrap gap-2'>
-      {#if location.hasVacuum}
+      {#if location.hasParking}
         <span class='px-2 py-1 rounded-full bg-muted inline-flex gap-1 items-center'>
-          <span class='i-ph:broom-fill' aria-hidden='true'></span>
-          Vacuum
+          <span class='i-ph:car-fill' aria-hidden='true'></span>
+          Parking
         </span>
       {/if}
-      {#if location.hasAutomatic}
+      {#if location.hasWifi}
         <span class='px-2 py-1 rounded-full bg-muted inline-flex gap-1 items-center'>
-          <span class='i-ph:robot' aria-hidden='true'></span>
-          Automatic
+          <span class='i-ph:wifi-high-bold' aria-hidden='true'></span>
+          Wi-Fi
         </span>
       {/if}
-      {#if location.hasCardPayment}
+      {#if location.isPetFriendly}
         <span class='px-2 py-1 rounded-full bg-muted inline-flex gap-1 items-center'>
-          <span class='i-ph:credit-card' aria-hidden='true'></span>
-          Card
+          <span class='i-ph:paw-print-fill' aria-hidden='true'></span>
+          Pet Friendly
         </span>
       {/if}
-      {#if !location.hasVacuum && !location.hasAutomatic && !location.hasCardPayment}
-        <span class='text-sm text-muted-foreground'>No extra services listed.</span>
+      {#if !location.hasParking && !location.hasWifi && !location.isPetFriendly}
+        <span class='text-sm text-muted-foreground'>No features listed.</span>
       {/if}
     </div>
   </div>

@@ -1,4 +1,4 @@
-import type { WashLocation } from '$lib/data/washes'
+import type { LocationItem } from '$lib/data/markers.svelte'
 
 export function formatHuf(amount: number) {
   return `${amount.toLocaleString('hu-HU')} Ft`
@@ -24,7 +24,7 @@ export function formatMinutes(m: number) {
   return `${pad2(hh)}:${pad2(mm)}`
 }
 
-export function formatHours(location: WashLocation) {
+export function formatHours(location: LocationItem) {
   if (location.openingHours.mode === 'twentyfour_seven') {
     return '0-24'
   }

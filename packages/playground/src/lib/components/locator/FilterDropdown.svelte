@@ -1,5 +1,5 @@
 <script lang='ts'>
-  import type { FiltersState } from '$lib/stores/washes.svelte'
+  import type { FiltersState } from '$lib/stores/markers.svelte'
   import { cn } from '$lib/utils'
 
   const {
@@ -19,15 +19,15 @@
     let n = 0
     if (filters.openNow)
       n++
-    if (filters.hasVacuum)
+    if (filters.hasParking)
       n++
-    if (filters.hasAutomatic)
+    if (filters.hasWifi)
       n++
-    if (filters.hasCardPayment)
+    if (filters.isPetFriendly)
       n++
-    if (filters.baysMin !== null)
+    if (filters.minScore !== null)
       n++
-    if (filters.priceMax !== null)
+    if (filters.minCapacity !== null)
       n++
     return n
   })
@@ -112,62 +112,62 @@
     <div class='bg-border h-px'></div>
 
     <div class='gap-2 grid'>
-      <div class='text-sm font-semibold'>Services</div>
+      <div class='text-sm font-semibold'>Features</div>
       <label class='text-sm flex gap-2 items-center'>
         <input
           type='checkbox'
-          checked={filters.hasVacuum}
-          onchange={e => set({ hasVacuum: (e.currentTarget as HTMLInputElement).checked })}
+          checked={filters.hasParking}
+          onchange={e => set({ hasParking: (e.currentTarget as HTMLInputElement).checked })}
         />
-        Vacuum
+        Parking
       </label>
       <label class='text-sm flex gap-2 items-center'>
         <input
           type='checkbox'
-          checked={filters.hasAutomatic}
-          onchange={e => set({ hasAutomatic: (e.currentTarget as HTMLInputElement).checked })}
+          checked={filters.hasWifi}
+          onchange={e => set({ hasWifi: (e.currentTarget as HTMLInputElement).checked })}
         />
-        Automatic
+        Wi-Fi
       </label>
       <label class='text-sm flex gap-2 items-center'>
         <input
           type='checkbox'
-          checked={filters.hasCardPayment}
-          onchange={e => set({ hasCardPayment: (e.currentTarget as HTMLInputElement).checked })}
+          checked={filters.isPetFriendly}
+          onchange={e => set({ isPetFriendly: (e.currentTarget as HTMLInputElement).checked })}
         />
-        Card payment
+        Pet Friendly
       </label>
     </div>
 
     <div class='bg-border h-px'></div>
 
     <div class='gap-2 grid'>
-      <div class='text-sm font-semibold'>Numbers</div>
+      <div class='text-sm font-semibold'>Criteria</div>
 
       <label class='text-sm gap-1 grid'>
-        <span class='text-muted-foreground'>Min bays</span>
+        <span class='text-muted-foreground'>Min Score</span>
         <input
           class='px-2 border border-border rounded-md bg-background h-9'
           inputmode='numeric'
-          placeholder='e.g. 4'
-          value={filters.baysMin ?? ''}
+          placeholder='e.g. 8'
+          value={filters.minScore ?? ''}
           oninput={(e) => {
             const v = (e.currentTarget as HTMLInputElement).value.trim()
-            set({ baysMin: v === '' ? null : Math.max(0, Number(v)) })
+            set({ minScore: v === '' ? null : Math.max(0, Number(v)) })
           }}
         />
       </label>
 
       <label class='text-sm gap-1 grid'>
-        <span class='text-muted-foreground'>Max price (HUF)</span>
+        <span class='text-muted-foreground'>Min Capacity</span>
         <input
           class='px-2 border border-border rounded-md bg-background h-9'
           inputmode='numeric'
-          placeholder='e.g. 2500'
-          value={filters.priceMax ?? ''}
+          placeholder='e.g. 50'
+          value={filters.minCapacity ?? ''}
           oninput={(e) => {
             const v = (e.currentTarget as HTMLInputElement).value.trim()
-            set({ priceMax: v === '' ? null : Math.max(0, Number(v)) })
+            set({ minCapacity: v === '' ? null : Math.max(0, Number(v)) })
           }}
         />
       </label>
@@ -180,11 +180,11 @@
         onclick={() =>
           onChange({
             openNow: false,
-            hasVacuum: false,
-            hasAutomatic: false,
-            hasCardPayment: false,
-            baysMin: null,
-            priceMax: null,
+            hasParking: false,
+            hasWifi: false,
+            isPetFriendly: false,
+            minScore: null,
+            minCapacity: null,
           })}
       >
         Reset
