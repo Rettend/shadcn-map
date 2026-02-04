@@ -20,7 +20,7 @@
     },
     "packages/map": {
       "name": "shadcn-map",
-      "version": "0.0.1",
+      "version": "0.1.1",
       "dependencies": {
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -59,6 +59,7 @@
       },
       "devDependencies": {
         "@iconify-json/ph": "^1.2.2",
+        "@internationalized/date": "^3.10.0",
         "@rttnd/unocss-preset-shadcn": "^1.0.1",
         "@sveltejs/adapter-auto": "^7.0.0",
         "@sveltejs/kit": "^2.49.1",

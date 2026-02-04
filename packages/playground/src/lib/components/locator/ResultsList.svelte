@@ -1,5 +1,5 @@
 <script lang='ts'>
-  import type { WashLocation } from '$lib/data/washes'
+  import type { LocationItem } from '$lib/data/markers.svelte'
   import { cn } from '$lib/utils'
   import { formatDistance } from './format'
 
@@ -9,7 +9,7 @@
     onSelect,
     class: className = '',
   }: {
-    results: Array<WashLocation & { distanceMeters: number | null, inView: boolean }>
+    results: Array<LocationItem & { distanceMeters: number | null, inView: boolean }>
     selectedId: string | null
     onSelect: (id: string) => void
     class?: string

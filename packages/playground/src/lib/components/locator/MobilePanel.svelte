@@ -1,6 +1,6 @@
 <script lang='ts'>
-  import type { WashLocation } from '$lib/data/washes'
-  import type { FiltersState, WashesStore, WashResult } from '$lib/stores/washes.svelte'
+  import type { LocationItem } from '$lib/data/markers.svelte'
+  import type { FiltersState, LocationResult, LocationsStore } from '$lib/stores/markers.svelte'
   import { cn } from '$lib/utils'
   import LocationDetails from './LocationDetails.svelte'
   import ResultsList from './ResultsList.svelte'
@@ -18,9 +18,9 @@
     onToggleExpanded,
     class: className = '',
   }: {
-    store: WashesStore
-    results: WashResult[]
-    selected: WashLocation | null
+    store: LocationsStore
+    results: LocationResult[]
+    selected: LocationItem | null
     onSelect: (id: string) => void
     onCloseDetails: () => void
     onSearchSubmit: () => void
@@ -70,7 +70,7 @@
       {#if store.drawerMode === 'details'}
         {selected?.name ?? 'Details'}
       {:else}
-        Nearby washes
+        Nearby locations
       {/if}
     </div>
 

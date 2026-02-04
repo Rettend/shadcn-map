@@ -1,5 +1,5 @@
 import type maplibregl from 'maplibre-gl'
-import { getContext, setContext } from 'svelte'
+import { getContext, setContext, untrack } from 'svelte'
 
 const MAP_CONTEXT_KEY = Symbol('shadcn-map-context')
 
@@ -92,7 +92,10 @@ export function createMapContext(): MapContextStore {
     },
     setClusteredMarkers: (ids) => {
       clusteredMarkerIds = new Set(ids)
-      clusteredVersion++
+      // IMPORTANT: avoid tracking `clusteredVersion` reads in callers (e.g. $effect)
+      // otherwise an effect that calls `setClusteredMarkers` can accidentally
+      // become dependent on `clusteredVersion` and re-run forever.
+      clusteredVersion = untrack(() => clusteredVersion) + 1
     },
     setActivePopupMarker: (id) => {
       activePopupMarkerId = id

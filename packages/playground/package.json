@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "sync": "svelte-kit sync",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "bun --bun eslint . --fix"
   },
   "peerDependencies": {
     "tailwindcss": "^4.0.0"
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@iconify-json/ph": "^1.2.2",
+    "@internationalized/date": "^3.10.0",
     "@rttnd/unocss-preset-shadcn": "^1.0.1",
     "@sveltejs/adapter-auto": "^7.0.0",
     "@sveltejs/kit": "^2.49.1",

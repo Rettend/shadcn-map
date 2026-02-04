@@ -3,11 +3,11 @@
 
   import DesktopSidebar from '$lib/components/locator/DesktopSidebar.svelte'
   import MobilePanel from '$lib/components/locator/MobilePanel.svelte'
-  import { washes } from '$lib/data/washes'
-  import { createWashesStore } from '$lib/stores/washes.svelte'
+  import { locations } from '$lib/data/markers.svelte'
+  import { createLocationsStore } from '$lib/stores/markers.svelte'
   import { GeolocateControl, Map as MapView, Marker, NavigationControl, Popup, ScaleControl } from 'shadcn-map'
 
-  const store = createWashesStore(washes)
+  const store = createLocationsStore(locations)
   let mapRef = $state<MapLibreMap | null>(null)
 
   let isMobile = $state(false)
@@ -174,12 +174,12 @@
     const map = new Map<string, MarkerBadge[]>()
     for (const w of store.filtered) {
       const badges: MarkerBadge[] = []
-      if (w.hasVacuum)
-        badges.push({ icon: 'i-ph:broom-fill', color: 'bg-violet-700', label: 'Vacuum', position: 'top-right' })
-      if (w.hasAutomatic)
-        badges.push({ icon: 'i-ph:robot', color: 'bg-violet-700', label: 'Automatic', position: 'top-right' })
-      if (w.hasCardPayment)
-        badges.push({ icon: 'i-ph:credit-card', color: 'bg-violet-700', label: 'Card', position: 'top-right' })
+      if (w.hasParking)
+        badges.push({ icon: 'i-ph:car-fill', color: 'bg-blue-600', label: 'Parking', position: 'top-right' })
+      if (w.hasWifi)
+        badges.push({ icon: 'i-ph:wifi-high-bold', color: 'bg-red-600', label: 'Wi-Fi', position: 'top-right' })
+      if (w.isPetFriendly)
+        badges.push({ icon: 'i-ph:paw-print-fill', color: 'bg-emerald-600', label: 'Pet Friendly', position: 'top-right' })
       map.set(w.id, badges)
     }
     return map
@@ -228,7 +228,7 @@
         color='bg-violet-600 dark:bg-violet-600'
         textColor='text-white'
         ringColor='ring-violet-500/50'
-        icon='i-custom:yuo'
+        icon='i-ph:map-pin-fill'
         label={w.name}
         badges={markerBadgesById.get(w.id) ?? []}
         active={store.selectedId === w.id}

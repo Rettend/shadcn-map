@@ -1,20 +1,21 @@
-import type { WashLocation } from '../data/washes'
+import type { LocationItem } from '../data/markers.svelte'
+import { locations as locationsData } from '../data/markers.svelte'
 
-export type BooleanFilterKey = 'hasVacuum' | 'hasAutomatic' | 'hasCardPayment'
-export type NumberFilterKey = 'baysMin' | 'priceMax'
+export type BooleanFilterKey = 'hasParking' | 'hasWifi' | 'isPetFriendly'
+export type NumberFilterKey = 'minScore' | 'minCapacity'
 
 export interface FiltersState {
   // Time filter: "open now"
   openNow: boolean
 
   // 3 boolean filters
-  hasVacuum: boolean
-  hasAutomatic: boolean
-  hasCardPayment: boolean
+  hasParking: boolean
+  hasWifi: boolean
+  isPetFriendly: boolean
 
   // 2 number filters
-  baysMin: number | null
-  priceMax: number | null
+  minScore: number | null
+  minCapacity: number | null
 }
 
 export type DrawerMode = 'browse' | 'details'
@@ -23,7 +24,7 @@ function minutesSinceMidnight(d: Date) {
   return d.getHours() * 60 + d.getMinutes()
 }
 
-export function isOpenNow(location: WashLocation, now = new Date()) {
+export function isOpenNow(location: LocationItem, now = new Date()) {
   if (location.openingHours.mode === 'twentyfour_seven') {
     return true
   }
@@ -31,7 +32,7 @@ export function isOpenNow(location: WashLocation, now = new Date()) {
   const close = location.openingHours.closeMinutes ?? 24 * 60
   const m = minutesSinceMidnight(now)
 
-  // Handle overnight ranges like 20:00-05:00 (not in demo, but robust).
+  // Handle overnight ranges like 20:00-05:00
   if (close < open) {
     return m >= open || m <= close
   }
@@ -42,7 +43,7 @@ export function normalizeQuery(q: string) {
   return q.trim().toLowerCase()
 }
 
-export function matchesSearch(location: WashLocation, query: string) {
+export function matchesSearch(location: LocationItem, query: string) {
   const q = normalizeQuery(query)
   if (!q) {
     return true
@@ -65,22 +66,22 @@ export function haversineMeters(a: [number, number], b: [number, number]) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
-export type WashResult = WashLocation & { distanceMeters: number | null, inView: boolean }
+export type LocationResult = LocationItem & { distanceMeters: number | null, inView: boolean }
 
-export class WashesStore {
+export class LocationsStore {
   // input data
-  all: WashLocation[]
+  all: LocationItem[]
 
   // view state
   selectedId = $state<string | null>(null)
   query = $state('')
   filters = $state<FiltersState>({
     openNow: false,
-    hasVacuum: false,
-    hasAutomatic: false,
-    hasCardPayment: false,
-    baysMin: null,
-    priceMax: null,
+    hasParking: false,
+    hasWifi: false,
+    isPetFriendly: false,
+    minScore: null,
+    minCapacity: null,
   })
 
   drawerMode = $state<DrawerMode>('browse')
@@ -101,19 +102,19 @@ export class WashesStore {
       if (this.filters.openNow && !isOpenNow(l, now)) {
         return false
       }
-      if (this.filters.hasVacuum && !l.hasVacuum) {
+      if (this.filters.hasParking && !l.hasParking) {
         return false
       }
-      if (this.filters.hasAutomatic && !l.hasAutomatic) {
+      if (this.filters.hasWifi && !l.hasWifi) {
         return false
       }
-      if (this.filters.hasCardPayment && !l.hasCardPayment) {
+      if (this.filters.isPetFriendly && !l.isPetFriendly) {
         return false
       }
-      if (this.filters.baysMin !== null && l.bays < this.filters.baysMin) {
+      if (this.filters.minScore !== null && l.score < this.filters.minScore) {
         return false
       }
-      if (this.filters.priceMax !== null && l.pricePerWashHuf > this.filters.priceMax) {
+      if (this.filters.minCapacity !== null && l.capacity < this.filters.minCapacity) {
         return false
       }
       return true
@@ -121,13 +122,13 @@ export class WashesStore {
   })
 
   // derived: sorted results with distance and in-view info
-  results = $derived.by((): WashResult[] => {
+  results = $derived.by((): LocationResult[] => {
     const mapBounds = this.mapBounds
     const mapCenter = this.mapCenter
 
     const inBounds = (lngLat: [number, number]) => {
       if (!mapBounds)
-return false
+        return false
       const [lng, lat] = lngLat
       return lng >= mapBounds.sw[0] && lng <= mapBounds.ne[0] && lat >= mapBounds.sw[1] && lat <= mapBounds.ne[1]
     }
@@ -151,11 +152,11 @@ return false
     return list
   })
 
-  constructor(initial: WashLocation[]) {
+  constructor(initial: LocationItem[] = locationsData) {
     this.all = initial
   }
 }
 
-export function createWashesStore(initial: WashLocation[]): WashesStore {
-  return new WashesStore(initial)
+export function createLocationsStore(initial?: LocationItem[]): LocationsStore {
+  return new LocationsStore(initial)
 }
