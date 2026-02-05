@@ -231,8 +231,9 @@
         </div>
 
         <div class='border rounded-lg h-[300px] w-full relative overflow-hidden'>
+          <!-- tiles='https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles' -->
           <MapView
-            tiles='https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles'
+            tiles='/hungary.pmtiles'
             center={finalLngLat}
             labels='roads'
             zoom={16}

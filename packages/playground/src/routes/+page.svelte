@@ -194,8 +194,9 @@
       : '0px'
   };`}
 >
+  <!-- tiles='https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles' -->
   <MapView
-    tiles='https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles'
+    tiles='/hungary.pmtiles'
     center={[19.0402, 47.4979]}
     zoom={12}
     labels='roads'
