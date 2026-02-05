@@ -19,10 +19,10 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
       },
     },
     {
-      'id': 'land',
+      'id': 'earth',
       'type': 'fill',
       'source': 'protomaps',
-      'source-layer': 'land',
+      'source-layer': 'earth',
       'paint': {
         'fill-color': c.land,
       },
@@ -32,6 +32,7 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
       'type': 'fill',
       'source': 'protomaps',
       'source-layer': 'water',
+      'filter': ['==', '$type', 'Polygon'],
       'paint': {
         'fill-color': c.water,
       },
@@ -52,11 +53,11 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
       'type': 'line',
       'source': 'protomaps',
       'source-layer': 'roads',
-      'filter': ['in', 'pmap:kind', 'minor_road', 'other', 'path'],
-      'minzoom': 12,
+      'filter': ['in', 'kind', 'minor_road', 'other', 'path', 'service', 'track', 'footway', 'cycleway', 'living_street', 'unclassified', 'residential'],
+      'minzoom': 10,
       'paint': {
         'line-color': c.roadMinor,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 16, 2],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.3, 12, 0.5, 16, 2],
       },
     },
     {
@@ -64,7 +65,7 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
       'type': 'line',
       'source': 'protomaps',
       'source-layer': 'roads',
-      'filter': ['in', 'pmap:kind', 'major_road', 'medium_road'],
+      'filter': ['in', 'kind', 'major_road', 'medium_road'],
       'minzoom': 8,
       'paint': {
         'line-color': c.roadMajor,
@@ -76,7 +77,7 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
       'type': 'line',
       'source': 'protomaps',
       'source-layer': 'roads',
-      'filter': ['==', 'pmap:kind', 'highway'],
+      'filter': ['==', 'kind', 'highway'],
       'minzoom': 5,
       'paint': {
         'line-color': c.roadHighway,
@@ -84,13 +85,27 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
       },
     },
     {
-      'id': 'boundaries',
+      'id': 'boundaries-country',
       'type': 'line',
       'source': 'protomaps',
       'source-layer': 'boundaries',
+      'filter': ['<=', 'kind_detail', 2],
       'paint': {
         'line-color': c.boundary,
-        'line-width': 1,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 2, 0.5, 6, 1.5, 12, 2],
+        'line-dasharray': [2, 1],
+      },
+    },
+    {
+      'id': 'boundaries-region',
+      'type': 'line',
+      'source': 'protomaps',
+      'source-layer': 'boundaries',
+      'filter': ['>', 'kind_detail', 2],
+      'minzoom': 4,
+      'paint': {
+        'line-color': c.boundary,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.3, 8, 0.8, 12, 1.5],
         'line-dasharray': [2, 2],
       },
     },
@@ -104,7 +119,7 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
         'source': 'protomaps',
         'source-layer': 'roads',
         'minzoom': 10,
-        'filter': ['in', 'pmap:kind', 'highway', 'major_road', 'medium_road'],
+        'filter': ['in', 'kind', 'highway', 'major_road', 'medium_road'],
         'layout': {
           'symbol-placement': 'line',
           'text-field': ['get', 'name'],
@@ -126,7 +141,7 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
         'source': 'protomaps',
         'source-layer': 'roads',
         'minzoom': 14,
-        'filter': ['in', 'pmap:kind', 'minor_road', 'other'],
+        'filter': ['in', 'kind', 'minor_road', 'other'],
         'layout': {
           'symbol-placement': 'line',
           'text-field': ['get', 'name'],
@@ -151,7 +166,7 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
     'source': 'protomaps',
     'source-layer': 'places',
     'minzoom': 6,
-    'filter': ['in', 'pmap:kind', 'city', 'state', 'country'],
+    'filter': ['in', 'kind', 'city', 'state', 'country'],
     'layout': {
       'text-field': ['get', 'name'],
       'text-font': ['Noto Sans Regular'],
