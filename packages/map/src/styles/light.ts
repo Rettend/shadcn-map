@@ -166,7 +166,7 @@ export function createLightStyle(tilesUrl: string, options: StyleOptions = {}): 
     'source': 'protomaps',
     'source-layer': 'places',
     'minzoom': 6,
-    'filter': ['in', 'kind', 'city', 'state', 'country'],
+    'filter': ['in', 'kind', 'locality', 'region', 'country'],
     'layout': {
       'text-field': ['get', 'name'],
       'text-font': ['Noto Sans Regular'],
