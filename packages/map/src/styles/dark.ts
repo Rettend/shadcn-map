@@ -166,7 +166,7 @@ export function createDarkStyle(tilesUrl: string, options: StyleOptions = {}): S
     'source': 'protomaps',
     'source-layer': 'places',
     'minzoom': 6,
-    'filter': ['in', 'kind', 'city', 'state', 'country'],
+    'filter': ['in', 'kind', 'locality', 'region', 'country'],
     'layout': {
       'text-field': ['get', 'name'],
       'text-font': ['Noto Sans Regular'],
