@@ -179,7 +179,7 @@
     border: 1px solid oklch(var(--border));
     border-radius: 10px;
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
-    padding: 10px 12px;
+    padding: 10px 20px 10px 12px;
     font-size: 13px;
   }
 
