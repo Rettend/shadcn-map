@@ -1,5 +1,6 @@
 <script lang='ts'>
-  import type { FiltersState } from '$lib/stores/w$lib/stores/markers.sveltecn } from '$lib/utils'
+  import type { FiltersState } from '$lib/stores/markers.svelte'
+  import { cn } from '$lib/utils'
   import FilterDropdown from './FilterDropdown.svelte'
 
   const {

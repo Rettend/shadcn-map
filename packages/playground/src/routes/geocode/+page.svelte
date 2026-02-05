@@ -1,8 +1,8 @@
 <script lang='ts'>
-  import type { WashLocation } from '$lib/data/markers.svelte'
+  import type { LocationItem } from '$lib/data/markers.svelte'
   import { Button } from '$lib/components/ui/button'
   import { Input } from '$lib/components/ui/input'
-  import { Label } from '$lib/components/ui/label'
+  import { locations } from '$lib/data/markers.svelte'
   import { Map as MapView, Marker, NavigationControl } from 'shadcn-map'
 
   interface GeoResult {
@@ -18,9 +18,8 @@
   let adjustedLngLat = $state<[number, number] | null>(null)
   let error = $state<string | null>(null)
   let successMessage = $state<string | null>(null)
-  let addedLocations = $state<WashLocation[]>([])
+  let addedLocations = $state<LocationItem[]>([])
 
-  // The final position (either adjusted by drag or original)
   const finalLngLat = $derived(adjustedLngLat ?? selectedResult?.lngLat ?? null)
   const wasAdjusted = $derived(adjustedLngLat !== null)
 
@@ -35,7 +34,6 @@
     successMessage = null
 
     try {
-      // Use structured search params for better accuracy
       // Also add viewbox (bounding box) limited to Hungary
       const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
         q: address,
@@ -43,7 +41,6 @@
         countrycodes: 'hu',
         limit: '5',
         addressdetails: '1',
-        // Hungary bounding box: ~16.1,45.7 to 22.9,48.6
         viewbox: '16.1,45.7,22.9,48.6',
         bounded: '1',
       })}`
@@ -96,31 +93,27 @@
     if (!finalLngLat || !selectedResult)
       return
 
-    // Create a new wash location
-    const newWash: WashLocation = {
+    const newLocation: LocationItem = {
       id: crypto.randomUUID(),
       name: address.split(',')[0] || 'New Location',
       address: selectedResult.displayName.split(',')[0],
       city: selectedResult.displayName.split(',')[1]?.trim() || 'Unknown',
       lngLat: finalLngLat,
-      bays: 4,
-      terminals: 2,
-      maxVehicleHeightCm: 210,
-      pricePerWashHuf: 2500,
-      hasVacuum: true,
-      hasAutomatic: true,
-      hasCardPayment: true,
+      score: 0,
+      capacity: 0,
+      hasParking: false,
+      hasWifi: false,
+      isPetFriendly: false,
       openingHours: { mode: 'twentyfour_seven' },
     }
 
     // Add to our reactive store
-    washes.push(newWash)
+    locations.push(newLocation)
 
-    // Track added locations locally for display
-    addedLocations = [...addedLocations, newWash]
+    addedLocations = [...addedLocations, newLocation]
 
     // Show success message
-    successMessage = `Added "${newWash.name}" at [${finalLngLat[0].toFixed(4)}, ${finalLngLat[1].toFixed(4)}]`
+    successMessage = `Added "${newLocation.name}" at [${finalLngLat[0].toFixed(4)}, ${finalLngLat[1].toFixed(4)}]`
 
     // Reset form
     address = ''
@@ -151,7 +144,6 @@
 
   <div class='text-card-foreground p-6 border rounded-xl bg-card shadow-sm space-y-4'>
     <div class='space-y-2'>
-      <Label for='address'>Address</Label>
       <div class='flex gap-2'>
         <Input
           id='address'
@@ -170,7 +162,6 @@
         </Button>
       </div>
       <p class='text-xs text-muted-foreground'>
-        Tip: Use "utca" instead of "út" for better results. Include the city name.
       </p>
     </div>
 
@@ -304,10 +295,10 @@
   <!-- Debug section (collapsible) -->
   <details class='text-card-foreground p-4 border rounded-xl bg-card'>
     <summary class='text-sm text-muted-foreground font-medium cursor-pointer transition-colors hover:text-foreground'>
-      Debug: Total washes count ({washes.length})
+      Debug: Total locations count ({locations.length})
     </summary>
     <div class='text-xs text-muted-foreground mt-4'>
-      <p>Total locations in store: <span class='text-foreground font-medium font-mono'>{washes.length}</span></p>
+      <p>Total locations in store: <span class='text-foreground font-medium font-mono'>{locations.length}</span></p>
     </div>
   </details>
 </div>

@@ -225,9 +225,9 @@
     {#each store.filtered as w (w.id)}
       <Marker
         lngLat={w.lngLat}
-        color='bg-violet-600 dark:bg-violet-600'
+        color='bg-blue-600 dark:bg-blue-600'
         textColor='text-white'
-        ringColor='ring-violet-500/50'
+        ringColor='ring-blue-500/50'
         icon='i-ph:map-pin-fill'
         label={w.name}
         badges={markerBadgesById.get(w.id) ?? []}
