@@ -49,6 +49,8 @@
     autoClusterRadius?: number
     /** Max zoom to cluster at for auto clustering */
     autoClusterMaxZoom?: number
+    /** URL to a hosted MapLibre GL CSP worker script. Set this to fix map loading in restricted environments (e.g. in-app browsers like Facebook Messenger) that block blob: URL workers. Point to a copy of maplibre-gl-csp-worker.js in your static folder. */
+    workerUrl?: string
   }
 </script>
 
@@ -86,6 +88,7 @@
     autoCluster = false,
     autoClusterRadius = 50,
     autoClusterMaxZoom = 14,
+    workerUrl,
   }: MapProps = $props()
 
   let container: HTMLDivElement
@@ -153,6 +156,10 @@
   })
 
   onMount(() => {
+    if (workerUrl) {
+      maplibregl.setWorkerUrl(workerUrl)
+    }
+
     const protocol = new Protocol()
     maplibregl.addProtocol('pmtiles', protocol.tile)
 
