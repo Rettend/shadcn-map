@@ -56,7 +56,7 @@
 
 <script lang='ts'>
   import maplibregl from 'maplibre-gl'
-  import { Protocol } from 'pmtiles'
+  import { FetchSource, PMTiles, Protocol } from 'pmtiles'
   import { onMount } from 'svelte'
   import { createMapContext } from '../context.svelte'
   import { createDarkStyle } from '../styles/dark'
@@ -148,6 +148,16 @@
   }
 
   let loaded = $state(false)
+  let mapError = $state<string | null>(null)
+
+  function checkWebGL(): boolean {
+    try {
+      const canvas = document.createElement('canvas')
+      return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl') || canvas.getContext('webgl2'))
+    } catch {
+      return false
+    }
+  }
 
   $effect(() => {
     if (!autoCluster) {
@@ -156,29 +166,54 @@
   })
 
   onMount(() => {
+    // Check WebGL before attempting to create the map
+    if (!checkWebGL()) {
+      mapError = 'WebGL is not available in this browser. The map requires WebGL to render.'
+      console.error('[shadcn-map]', mapError)
+      return
+    }
+
+    // Use a hosted worker script instead of blob: URLs.
+    // This fixes map loading in restricted WebViews (Facebook Messenger, Instagram, etc.)
+    // that block blob: URL workers.
     if (workerUrl) {
       maplibregl.setWorkerUrl(workerUrl)
     }
 
     const protocol = new Protocol()
+    const source = new FetchSource(tiles)
+    // Force Chromium+Windows cache workaround regardless of emulated user agent.
+    // DevTools mobile emulation can change UA while still using desktop cache behavior.
+    const sourceWithCacheFlags = source as FetchSource & {
+      chromeWindowsNoCache?: boolean
+    }
+    sourceWithCacheFlags.chromeWindowsNoCache = true
+    protocol.add(new PMTiles(source))
     maplibregl.addProtocol('pmtiles', protocol.tile)
 
-    const mapInstance = new maplibregl.Map({
-      container,
-      style: getStyle(),
-      center,
-      zoom,
-      minZoom,
-      maxZoom,
-      pitch,
-      bearing,
-      interactive,
-      dragRotate,
-      touchPitch,
-      touchZoomRotate,
-      pitchWithRotate,
-      fadeDuration: 0,
-    })
+    let mapInstance: maplibregl.Map
+    try {
+      mapInstance = new maplibregl.Map({
+        container,
+        style: getStyle(),
+        center,
+        zoom,
+        minZoom,
+        maxZoom,
+        pitch,
+        bearing,
+        interactive,
+        dragRotate,
+        touchPitch,
+        touchZoomRotate,
+        pitchWithRotate,
+        fadeDuration: 0,
+      })
+    } catch (e) {
+      mapError = `Map initialization failed: ${e instanceof Error ? e.message : e}`
+      console.error('[shadcn-map]', mapError)
+      return
+    }
 
     ctx.setMap(mapInstance)
 
@@ -186,6 +221,10 @@
       loaded = true
       ctx.setLoaded(true)
       onload?.(mapInstance)
+    })
+
+    mapInstance.on('error', (e) => {
+      console.error('[shadcn-map] Map error:', e.error?.message || e)
     })
 
     mapInstance.on('click', (e) => {
@@ -232,6 +271,14 @@
 </script>
 
 <div bind:this={container} class='shadcn-map {className}' data-map-mode={resolvedMode}>
+  {#if mapError}
+    <div class='shadcn-map-error'>
+      <div class='shadcn-map-error-content'>
+        <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>
+        <p>{mapError}</p>
+      </div>
+    </div>
+  {/if}
   {#if loaded && children}
     {#if autoCluster}
       <ClusterLayer
@@ -255,6 +302,28 @@
 
   .shadcn-map :global(.maplibregl-canvas) {
     outline: none;
+  }
+
+  .shadcn-map-error {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #18181b;
+    color: #a1a1aa;
+  }
+
+  .shadcn-map-error-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+    text-align: center;
+    font-size: 14px;
+    max-width: 320px;
   }
 
   /* Attribution control */

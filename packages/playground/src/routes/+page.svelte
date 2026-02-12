@@ -11,6 +11,8 @@
   let mapRef = $state<MapLibreMap | null>(null)
 
   let isMobile = $state(false)
+  const hungaryBounds: [[number, number], [number, number]] = [[16.1, 45.72], [22.93, 48.62]]
+  const tileBounds: [[number, number], [number, number]] = [[16.0, 45.7], [23.0, 48.7]]
 
   function updateViewportFromMap() {
     if (!mapRef)
@@ -31,13 +33,12 @@
 
     if (isMobile) {
       const drawerH = store.drawerCollapsed
-        ? (52 + 12) // header + bottom margin
-        : ((store.drawerExpanded ? 0.6 : 0.3) * h + 12) // panel height + bottom margin
+        ? 52 + 12
+        : (store.drawerExpanded ? 0.6 : 0.3) * h + 12
       return [0, -drawerH / 2]
     }
 
-    // Desktop: left sidebar overlays the map; center within the remaining visible area.
-    const sidebarW = Math.min(w * 0.92, 380) + 12 // width + left margin
+    const sidebarW = Math.min(w * 0.92, 380) + 12
     return [sidebarW / 2, 0]
   }
 
@@ -55,6 +56,61 @@
 
     const sidebarW = Math.min(w * 0.92, 380)
     return { top: 80, left: Math.round(sidebarW + 48), right: 24, bottom: 80 }
+  }
+
+  function getInitialCountryFitPaddingPx(map: MapLibreMap) {
+    const container = map.getContainer()
+    const w = container.clientWidth
+    const h = container.clientHeight
+    const mobileViewport = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+
+    if (mobileViewport) {
+      return { top: 72, left: 20, right: 20, bottom: Math.round(0.3 * h + 24) }
+    }
+
+    const sidebarW = Math.min(w * 0.92, 380)
+    return { top: 72, left: Math.round(sidebarW + 48), right: 24, bottom: 72 }
+  }
+
+  function fitHungaryForInitialViewport(map: MapLibreMap) {
+    map.fitBounds(hungaryBounds, {
+      padding: getInitialCountryFitPaddingPx(map),
+      duration: 0,
+    })
+  }
+
+  function applyDynamicCameraLimits(map: MapLibreMap) {
+    const mobileViewport = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+
+    fitHungaryForInitialViewport(map)
+
+    const fittedZoom = map.getZoom()
+    const minZoom = Math.floor((mobileViewport ? Math.max(fittedZoom, 5.6) : fittedZoom) * 1000) / 1000
+    map.setMinZoom(minZoom)
+    if (map.getZoom() < minZoom) {
+      map.jumpTo({ zoom: minZoom })
+    }
+
+    const vp = map.getBounds()
+    const vpLngSpan = vp.getEast() - vp.getWest()
+    const vpLatSpan = vp.getNorth() - vp.getSouth()
+    const tileLngSpan = tileBounds[1][0] - tileBounds[0][0]
+    const halfExcessLng = Math.max(0, (vpLngSpan - tileLngSpan) / 2)
+
+    const westExtra = mobileViewport ? 0.6 : 0.75
+    const eastExtra = 1.0
+    const northBound = tileBounds[1][1] + 0.21
+    const desktopVerticalSlack = Math.max(0.14, Math.min(0.42, 0.42 - (vpLatSpan - 3.35) * 1.1))
+    const verticalSlack = mobileViewport ? 0.12 : desktopVerticalSlack
+    const southBound = Math.min(
+      northBound - vpLatSpan - verticalSlack,
+      tileBounds[0][1] - 0.2,
+    )
+
+    map.setMaxBounds([
+      [tileBounds[0][0] - (halfExcessLng + westExtra), southBound],
+      [tileBounds[1][0] + (halfExcessLng + eastExtra), northBound],
+    ])
   }
 
   function centerOnId(id: string, zoom = 15) {
@@ -136,7 +192,10 @@
     const media = window.matchMedia('(max-width: 640px)')
     const update = () => {
       isMobile = media.matches
-      // When switching from mobile -> desktop, exit the mobile details mode.
+      if (mapRef) {
+        applyDynamicCameraLimits(mapRef)
+        updateViewportFromMap()
+      }
       if (!isMobile) {
         store.drawerMode = 'browse'
         store.drawerExpanded = false
@@ -194,23 +253,23 @@
       : '0px'
   };`}
 >
-  <!-- tiles='https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles' -->
+  <!-- tiles='/hungary.pmtiles' -->
   <MapView
-    tiles='/hungary.pmtiles'
+    tiles='https://map.splaash.hu/hungary.pmtiles'
     workerUrl='/maplibre-gl-csp-worker.js'
     center={[19.0402, 47.4979]}
     zoom={12}
+    maxZoom={15}
     labels='roads'
     autoCluster
     autoClusterRadius={50}
     autoClusterMaxZoom={13}
     onload={(m) => {
       mapRef = m
+      applyDynamicCameraLimits(m)
       updateViewportFromMap()
     }}
-    onmove={() => {
-      updateViewportFromMap()
-    }}
+    onmove={() => updateViewportFromMap()}
     onclick={() => {
       if (isMobile) {
         // Map click on mobile closes details mode.
@@ -263,10 +322,7 @@
     <GeolocateControl
       position='bottom-right'
       zoom={14}
-      onlocate={() => {
-        // When we locate, refresh ordering.
-        updateViewportFromMap()
-      }}
+      onlocate={() => updateViewportFromMap()}
     />
     <ScaleControl position='bottom-left' />
   </MapView>
@@ -306,7 +362,6 @@
 </div>
 
 <style>
-  /* Mobile: the bottom drawer would cover map controls. Push bottom controls up to the top edge of the drawer. */
   :global(.controls-host.is-mobile .shadcn-map .maplibregl-ctrl-bottom-left),
   :global(.controls-host.is-mobile .shadcn-map .maplibregl-ctrl-bottom-right) {
     bottom: calc(var(--mobile-controls-bottom) + 20px);
