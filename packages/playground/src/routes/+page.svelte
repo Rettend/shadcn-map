@@ -256,7 +256,6 @@
   <!-- tiles='/hungary.pmtiles' -->
   <MapView
     tiles='https://map.splaash.hu/hungary.pmtiles'
-    workerUrl='/maplibre-gl-csp-worker.js'
     center={[19.0402, 47.4979]}
     zoom={12}
     maxZoom={15}
