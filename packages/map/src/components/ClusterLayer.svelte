@@ -260,7 +260,8 @@
   function attachLayerEvents(currentMap: MapLibreMap) {
     detachEvents?.()
 
-    const handleClusterClick = (event: MapLayerMouseEvent) => {
+    const handleClusterDoubleClick = (event: MapLayerMouseEvent) => {
+      event.preventDefault?.()
       const feature = event.features?.[0]
       const clusterId = Number(feature?.properties?.cluster_id)
       if (!Number.isFinite(clusterId)) {
@@ -311,7 +312,7 @@
       currentMap.getCanvas().style.cursor = ''
     }
 
-    currentMap.on('click', clusterLayerId, handleClusterClick)
+    currentMap.on('dblclick', clusterLayerId, handleClusterDoubleClick)
     if (showUnclustered) {
       currentMap.on('click', unclusteredLayerId, handlePointClick)
     }
@@ -323,7 +324,7 @@
     }
 
     detachEvents = () => {
-      currentMap.off('click', clusterLayerId, handleClusterClick)
+      currentMap.off('dblclick', clusterLayerId, handleClusterDoubleClick)
       if (showUnclustered) {
         currentMap.off('click', unclusteredLayerId, handlePointClick)
       }
