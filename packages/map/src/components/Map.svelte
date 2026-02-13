@@ -49,8 +49,6 @@
     autoClusterRadius?: number
     /** Max zoom to cluster at for auto clustering */
     autoClusterMaxZoom?: number
-    /** URL to a hosted MapLibre GL CSP worker script. Set this to fix map loading in restricted environments (e.g. in-app browsers like Facebook Messenger) that block blob: URL workers. Point to a copy of maplibre-gl-csp-worker.js in your static folder. */
-    workerUrl?: string
   }
 </script>
 
@@ -88,7 +86,6 @@
     autoCluster = false,
     autoClusterRadius = 50,
     autoClusterMaxZoom = 14,
-    workerUrl,
   }: MapProps = $props()
 
   let container: HTMLDivElement
@@ -173,17 +170,8 @@
       return
     }
 
-    // Use a hosted worker script instead of blob: URLs.
-    // This fixes map loading in restricted WebViews (Facebook Messenger, Instagram, etc.)
-    // that block blob: URL workers.
-    if (workerUrl) {
-      maplibregl.setWorkerUrl(workerUrl)
-    }
-
     const protocol = new Protocol()
     const source = new FetchSource(tiles)
-    // Force Chromium+Windows cache workaround regardless of emulated user agent.
-    // DevTools mobile emulation can change UA while still using desktop cache behavior.
     const sourceWithCacheFlags = source as FetchSource & {
       chromeWindowsNoCache?: boolean
     }
