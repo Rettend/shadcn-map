@@ -12,6 +12,8 @@
     maximumAge?: number
     /** Timeout in ms */
     timeout?: number
+    /** Custom click handler (overrides default geolocation) */
+    onclick?: (event: MouseEvent) => void
     /** Called with found coordinates */
     onlocate?: (lngLat: [number, number]) => void
     /** Called when geolocation fails */
@@ -32,6 +34,7 @@
     enableHighAccuracy = true,
     maximumAge = 30_000,
     timeout = 10_000,
+    onclick,
     onlocate,
     onerror,
     ariaLabel = 'Go to my location',
@@ -47,7 +50,12 @@
   let control: ControlLike | null = null
   let mountedMap: MapLibreMap | null = null
 
-  function handleClick() {
+  function handleClick(e: MouseEvent) {
+    if (onclick) {
+      onclick(e)
+      return
+    }
+
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       onerror?.(new Error('Geolocation is not available in this environment.'))
       return
