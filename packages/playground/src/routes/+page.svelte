@@ -13,6 +13,25 @@
   let isMobile = $state(false)
   const hungaryBounds: [[number, number], [number, number]] = [[16.1, 45.72], [22.93, 48.62]]
   const tileBounds: [[number, number], [number, number]] = [[16.0, 45.7], [23.0, 48.7]]
+  const svgBadgeExample: { lngLat: [number, number], badges: MarkerBadge[] } = {
+    lngLat: [19.0556, 47.4974],
+    badges: [
+      {
+        svgBody: '<path d="M128 20l30.9 62.7 69.1 10-50 48.7 11.8 69-61.8-32.5-61.8 32.5 11.8-69-50-48.7 69.1-10z"></path>',
+        svgWidth: 256,
+        svgHeight: 256,
+        color: 'bg-violet-600',
+        label: 'Inline SVG badge',
+        position: 'top-right',
+      },
+      {
+        icon: 'i-ph:flask-fill',
+        color: 'bg-sky-600',
+        label: 'Legacy icon badge',
+        position: 'bottom-left',
+      },
+    ],
+  }
 
   function updateViewportFromMap() {
     if (!mapRef)
@@ -253,6 +272,11 @@
       : '0px'
   };`}
 >
+  <div class='pointer-events-none absolute left-1/2 top-3 z-10 w-[min(22rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-lg border bg-background/92 px-3 py-2 shadow-lg backdrop-blur sm:left-auto sm:right-4 sm:translate-x-0'>
+    <p class='text-sm font-medium'>SVG badge example</p>
+    <p class='text-xs text-muted-foreground'>The highlighted purple marker near downtown Budapest renders its top-right badge from inline `svgBody` markup.</p>
+  </div>
+
   <!-- tiles='/hungary.pmtiles' -->
   <MapView
     tiles='https://map.splaash.hu/hungary.pmtiles'
@@ -282,6 +306,19 @@
       }
     }}
   >
+    <Marker
+      lngLat={svgBadgeExample.lngLat}
+      color='bg-violet-700 dark:bg-violet-700'
+      textColor='text-white'
+      ringColor='ring-violet-500/45'
+      size='lg'
+      icon='i-ph:star-four-fill'
+      label='SVG badge example'
+      badges={svgBadgeExample.badges}
+      active
+      clusterable={false}
+    />
+
     {#each store.filtered as w (w.id)}
       <Marker
         lngLat={w.lngLat}

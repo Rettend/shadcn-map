@@ -38,7 +38,13 @@ export type BadgePosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-
  */
 export interface MarkerBadge {
   /** Iconify icon class (e.g. 'i-ph:credit-card') */
-  icon: string
+  icon?: string
+  /** Trusted SVG body markup rendered inline inside the badge */
+  svgBody?: string
+  /** SVG viewBox width when using svgBody */
+  svgWidth?: number
+  /** SVG viewBox height when using svgBody */
+  svgHeight?: number
   /** Background color (UnoCSS class like 'bg-green-500') */
   color?: string
   /** Icon/text color (UnoCSS class, defaults to 'text-white') */
