@@ -44,6 +44,33 @@ bun i svelte@^5.0.0 bits-ui mode-watcher
 </div>
 ```
 
+### Marker badges
+
+`<Marker>` badges support both legacy UnoCSS/Iconify class icons and inline SVG badges:
+
+```svelte
+<script lang="ts">
+  import { Marker } from 'shadcn-map'
+
+  const badges = [
+    {
+      icon: 'i-ph:drop-duotone',
+      color: 'bg-sky-600',
+      label: 'Legacy class badge',
+    },
+    {
+      svgBody: '<path d="M128 24L32 80v96l96 56l96-56V80Z" opacity=".2"></path><path d="M128 24L32 80v96l96 56l96-56V80Z"></path>',
+      svgWidth: 256,
+      svgHeight: 256,
+      color: 'bg-violet-700',
+      label: 'Inline SVG badge',
+    },
+  ]
+</script>
+
+<Marker lngLat={[-74.006, 40.7128]} badges={badges} />
+```
+
 ## Components
 
 - **Map**:

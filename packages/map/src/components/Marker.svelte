@@ -36,6 +36,7 @@
 <script lang='ts'>
   import maplibregl from 'maplibre-gl'
   import { onMount } from 'svelte'
+  import { buildBadgeSvgMarkup } from './badge-visual'
   import { getMapContext } from '../context.svelte'
   import { themeColorTokens } from '../theme'
 
@@ -147,7 +148,10 @@
   const renderedBadges = $derived.by(() => {
     const result: Array<{
       position: BadgePosition
-      icon: string
+      icon?: string
+      svgBody?: string
+      svgWidth?: number
+      svgHeight?: number
       color: string
       textColor: string
       label: string
@@ -166,6 +170,9 @@
         result.push({
           position,
           icon: firstBadge.icon,
+          svgBody: firstBadge.svgBody,
+          svgWidth: firstBadge.svgWidth,
+          svgHeight: firstBadge.svgHeight,
           color: firstBadge.color ?? 'bg-zinc-700',
           textColor: firstBadge.textColor ?? 'text-white',
           label: firstBadge.label ?? '',
@@ -199,7 +206,10 @@
     const result: Array<{
       key: string
       position: BadgePosition
-      icon: string
+      icon?: string
+      svgBody?: string
+      svgWidth?: number
+      svgHeight?: number
       color: string
       textColor: string
       label: string
@@ -221,6 +231,9 @@
           key: `${position}-${index}`,
           position: position as BadgePosition,
           icon: badge.icon,
+          svgBody: badge.svgBody,
+          svgWidth: badge.svgWidth,
+          svgHeight: badge.svgHeight,
           color: badge.color ?? 'bg-zinc-700',
           textColor: badge.textColor ?? 'text-white',
           label: index === 0 ? allLabels : (badge.label ?? ''),
@@ -335,7 +348,13 @@
       data-position={badge.position}
       title={badge.label}
     >
-      <span class='badge-icon {badge.icon}' aria-hidden='true'></span>
+      {#if badge.svgBody}
+        <span class='badge-icon badge-icon-svg' aria-hidden='true'>
+          {@html buildBadgeSvgMarkup(badge.svgBody, badge.svgWidth, badge.svgHeight)}
+        </span>
+      {:else if badge.icon}
+        <span class='badge-icon {badge.icon}' aria-hidden='true'></span>
+      {/if}
     </div>
   {/each}
 
@@ -348,7 +367,13 @@
       title={badge.label}
       style:--badge-index={badge.index}
     >
-      <span class='badge-icon {badge.icon}' aria-hidden='true'></span>
+      {#if badge.svgBody}
+        <span class='badge-icon badge-icon-svg' aria-hidden='true'>
+          {@html buildBadgeSvgMarkup(badge.svgBody, badge.svgWidth, badge.svgHeight)}
+        </span>
+      {:else if badge.icon}
+        <span class='badge-icon {badge.icon}' aria-hidden='true'></span>
+      {/if}
     </div>
   {/each}
 </div>
@@ -534,6 +559,18 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .badge-icon-svg {
+    width: 1em;
+    height: 1em;
+    line-height: 0;
+  }
+
+  .badge-icon-svg :global(svg) {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 
   .shadcn-marker[data-map-mode='dark'] .marker-badge {
