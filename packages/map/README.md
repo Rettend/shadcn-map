@@ -89,12 +89,29 @@ Use `<MarkerLayer>` for hundreds or thousands of non-clustered markers. It rende
   <MarkerLayer
     points={locations}
     color="#2563eb"
+    icon="i-ph:coffee-fill"
+    iconColor="#ffffff"
     onclick={point => console.log(point.label)}
   />
 </Map>
 ```
 
-Marker IDs must be stable and unique. Replace the `points` array to update the source. `<MarkerLayer>` currently supports the built-in map-pin visual, concrete MapLibre color strings, sizes, active rings, and pointer events. Use the DOM-based `<Marker>` when you need badges, dragging, keyboard focus, or arbitrary HTML.
+Icons can be an Iconify/UnoCSS class or trusted inline SVG body:
+
+```svelte
+<MarkerLayer
+  points={locations.map(location => ({
+    ...location,
+    icon: {
+      svgBody: '<path fill="currentColor" d="..."/>',
+      svgWidth: 256,
+      svgHeight: 256,
+    },
+  }))}
+/>
+```
+
+Marker IDs must be stable and unique. Replace the `points` array to update the source. Dynamically generated Iconify class names must be included in your UnoCSS safelist so their CSS is available at runtime. `<MarkerLayer>` supports concrete CSS colors, per-point icons and sizes, active rings, hover labels, and pointer events. Use the DOM-based `<Marker>` when you need badges, dragging, keyboard focus, or arbitrary HTML.
 
 ## Components
 

@@ -252,7 +252,7 @@
     onload={handleMapLoad}
   >
     {#if renderer === 'layer'}
-      <MarkerLayer points={markers} color='#2563eb' onready={handleLayerReady} />
+      <MarkerLayer points={markers} color='#2563eb' icon='i-ph:map-pin-fill' onready={handleLayerReady} />
     {:else}
       {#each markers as marker (marker.id)}
         <Marker

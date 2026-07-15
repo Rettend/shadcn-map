@@ -1,6 +1,11 @@
 <script lang='ts' module>
   import type { MapLayerMouseEvent } from 'maplibre-gl'
   import type { MarkerSize } from '../types'
+  import type { CompositeMarkerImage } from './marker-layer-image'
+  import { createCompositeMarkerImage, createDefaultMarkerImage, markerVisualSizes } from './marker-layer-image'
+
+  export type MarkerLayerIcon = import('./marker-layer-image').MarkerLayerIcon
+  export type MarkerLayerIconValue = import('./marker-layer-image').MarkerLayerIconValue
 
   export interface MarkerLayerPoint {
     /** Stable unique identifier used for updates and interactions. */
@@ -13,6 +18,10 @@
     color?: string
     /** Per-point size override. */
     size?: MarkerSize
+    /** Per-point Iconify/UnoCSS class or trusted inline SVG icon override. */
+    icon?: MarkerLayerIconValue
+    /** Per-point icon color override. */
+    iconColor?: string
     /** Additional serializable properties copied to the GeoJSON feature. */
     properties?: Record<string, unknown>
   }
@@ -24,6 +33,10 @@
     color?: string
     /** Fallback marker size. */
     size?: MarkerSize
+    /** Fallback Iconify/UnoCSS class or trusted inline SVG icon. */
+    icon?: MarkerLayerIconValue
+    /** Fallback icon color. */
+    iconColor?: string
     /** Marker border color. Defaults to a map-mode-aware translucent color. */
     strokeColor?: string
     /** Marker shown with an active ring. */
@@ -44,44 +57,6 @@
     onready?: () => void
   }
 
-  const MAP_PIN_PATH = 'M128 16a88.1 88.1 0 0 0-88 88c0 75.3 80 132.17 83.41 134.55a8 8 0 0 0 9.18 0C136 236.17 216 179.3 216 104a88.1 88.1 0 0 0-88-88m0 56a32 32 0 1 1-32 32a32 32 0 0 1 32-32'
-
-  const MARKER_VISUALS: Record<MarkerSize, { diameter: number, iconSize: number }> = {
-    sm: { diameter: 28, iconSize: 16 },
-    md: { diameter: 36, iconSize: 20 },
-    lg: { diameter: 44, iconSize: 24 },
-  }
-
-  function createMarkerImage(size: MarkerSize, color: string, strokeColor: string): { data: ImageData, pixelRatio: number } {
-    const pixelRatio = 2
-    const { diameter, iconSize } = MARKER_VISUALS[size]
-    const canvas = document.createElement('canvas')
-    canvas.width = diameter * pixelRatio
-    canvas.height = diameter * pixelRatio
-
-    const context = canvas.getContext('2d')
-    if (!context) {
-      throw new Error('Unable to create the MarkerLayer icon canvas.')
-    }
-
-    context.scale(pixelRatio, pixelRatio)
-    context.beginPath()
-    context.arc(diameter / 2, diameter / 2, diameter / 2 - 1, 0, Math.PI * 2)
-    context.fillStyle = color
-    context.fill()
-    context.lineWidth = 2
-    context.strokeStyle = strokeColor
-    context.stroke()
-
-    context.translate((diameter - iconSize) / 2, (diameter - iconSize) / 2)
-    context.scale(iconSize / 256, iconSize / 256)
-    context.fillStyle = '#ffffff'
-    context.fill(new Path2D(MAP_PIN_PATH))
-    return {
-      data: context.getImageData(0, 0, canvas.width, canvas.height),
-      pixelRatio,
-    }
-  }
 </script>
 
 <script lang='ts'>
@@ -95,6 +70,8 @@
     points,
     color = '#2563eb',
     size = 'md',
+    icon,
+    iconColor = '#ffffff',
     strokeColor,
     activeId = null,
     hiddenId = null,
@@ -113,9 +90,20 @@
   const activeLayerId = `${instanceId}-active`
   const markerLayerId = `${instanceId}-marker`
 
+  type MarkerVisual = {
+    imageId: string
+    size: MarkerSize
+    color: string
+    strokeColor: string
+    icon?: MarkerLayerIconValue
+    iconColor: string
+  }
+
   let map: MapLibreMap | null = null
   let pointsById = new Map<string, MarkerLayerPoint>()
-  const markerVisuals = new Map<string, { imageId: string, size: MarkerSize, color: string, strokeColor: string }>()
+  const markerVisuals = new Map<string, MarkerVisual>()
+  const pendingMarkerImages = new Map<string, Promise<CompositeMarkerImage>>()
+  const registeredImageIds = new Set<string>()
   let hoveredPoint: MarkerLayerPoint | null = null
   let eventsAttached = false
   let readyEmitted = false
@@ -124,8 +112,12 @@
   let appliedPoints: MarkerLayerPoint[] | null = null
   let appliedColor: string | null = null
   let appliedSize: MarkerSize | null = null
+  let appliedIcon: MarkerLayerIconValue | null | undefined = null
+  let appliedIconColor: string | null = null
   let appliedStrokeColor: string | null = null
   let nextVisualId = 0
+  let styleGeneration = 0
+  let dataGeneration = 0
   let tooltip = $state<{ x: number, y: number, label: string } | null>(null)
 
   function pointKey(id: string | number) {
@@ -136,11 +128,23 @@
     return strokeColor ?? (ctx.resolvedMode === 'dark' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)')
   }
 
+  function getIconKey(value?: MarkerLayerIconValue) {
+    if (typeof value === 'string') {
+      return ['class', value]
+    }
+    if (value) {
+      return ['svg', value.svgBody, value.svgWidth, value.svgHeight]
+    }
+    return ['default']
+  }
+
   function getMarkerVisual(point: MarkerLayerPoint) {
     const resolvedSize = point.size ?? size
     const resolvedColor = point.color ?? color
     const resolvedStrokeColor = getResolvedStrokeColor()
-    const key = JSON.stringify([resolvedSize, resolvedColor, resolvedStrokeColor])
+    const resolvedIcon = point.icon ?? icon
+    const resolvedIconColor = point.iconColor ?? iconColor
+    const key = JSON.stringify([resolvedSize, resolvedColor, resolvedStrokeColor, getIconKey(resolvedIcon), resolvedIconColor])
     let visual = markerVisuals.get(key)
     if (!visual) {
       visual = {
@@ -148,6 +152,8 @@
         size: resolvedSize,
         color: resolvedColor,
         strokeColor: resolvedStrokeColor,
+        icon: resolvedIcon,
+        iconColor: resolvedIconColor,
       }
       markerVisuals.set(key, visual)
     }
@@ -205,7 +211,7 @@
       const markerPosition = map?.project(nextPoint.lngLat)
       tooltip = {
         x: markerPosition?.x ?? event.point.x,
-        y: (markerPosition?.y ?? event.point.y) - MARKER_VISUALS[pointSize].diameter / 2 - 8,
+        y: (markerPosition?.y ?? event.point.y) - markerVisualSizes[pointSize].diameter / 2 - 8,
         label: nextPoint.label,
       }
     }
@@ -298,20 +304,63 @@
     }
   }
 
-  function ensureMarkerImages(currentMap: MapLibreMap) {
-    for (const point of points) {
-      const visual = getMarkerVisual(point)
-      if (!currentMap.hasImage(visual.imageId)) {
-        const image = createMarkerImage(visual.size, visual.color, visual.strokeColor)
-        currentMap.addImage(visual.imageId, image.data, { pixelRatio: image.pixelRatio })
+  async function ensureMarkerImages(
+    currentMap: MapLibreMap,
+    visuals: Set<MarkerVisual>,
+    expectedStyleGeneration: number,
+    expectedDataGeneration: number,
+  ) {
+    await Promise.all(Array.from(visuals, async (visual) => {
+      if (currentMap.hasImage(visual.imageId)) {
+        registeredImageIds.add(visual.imageId)
+        return
       }
-    }
+      let pendingImage = pendingMarkerImages.get(visual.imageId)
+      if (!pendingImage) {
+        pendingImage = createCompositeMarkerImage({
+          size: visual.size,
+          color: visual.color,
+          strokeColor: visual.strokeColor,
+          icon: visual.icon,
+          iconColor: visual.iconColor,
+        }).catch((error) => {
+          console.warn('[shadcn-map] Unable to render a custom MarkerLayer icon. Using the default icon.', error)
+          return createDefaultMarkerImage({
+            size: visual.size,
+            color: visual.color,
+            strokeColor: visual.strokeColor,
+            iconColor: visual.iconColor,
+          })
+        })
+        pendingMarkerImages.set(visual.imageId, pendingImage)
+      }
+
+      try {
+        const image = await pendingImage
+        if (
+          map === currentMap
+          && expectedStyleGeneration === styleGeneration
+          && expectedDataGeneration === dataGeneration
+          && !currentMap.hasImage(visual.imageId)
+        ) {
+          currentMap.addImage(visual.imageId, image.image, { pixelRatio: image.pixelRatio })
+          registeredImageIds.add(visual.imageId)
+        }
+      }
+      finally {
+        if (pendingMarkerImages.get(visual.imageId) === pendingImage) {
+          pendingMarkerImages.delete(visual.imageId)
+        }
+      }
+    }))
   }
 
   function markDataApplied() {
     appliedPoints = points
     appliedColor = color
     appliedSize = size
+    appliedIcon = icon
+    appliedIconColor = iconColor
     appliedStrokeColor = getResolvedStrokeColor()
   }
 
@@ -319,15 +368,19 @@
     return appliedPoints !== points
       || appliedColor !== color
       || appliedSize !== size
+      || appliedIcon !== icon
+      || appliedIconColor !== iconColor
       || appliedStrokeColor !== getResolvedStrokeColor()
   }
 
   function updateSourceData(currentMap: MapLibreMap) {
-    const source = currentMap.getSource(sourceId) as GeoJSONSource | undefined
-    if (!source || !sourceDataNeedsUpdate()) {
+    if (!currentMap.getSource(sourceId) || !sourceDataNeedsUpdate()) {
       return
     }
-    ensureMarkerImages(currentMap)
+    const source = currentMap.getSource(sourceId) as GeoJSONSource | undefined
+    if (!source) {
+      return
+    }
     const data = buildGeoJSON()
     if (hoveredPoint && !pointsById.has(pointKey(hoveredPoint.id))) {
       currentMap.getCanvas().style.cursor = ''
@@ -347,6 +400,7 @@
       if (currentMap.hasImage(visual.imageId)) {
         currentMap.removeImage(visual.imageId)
       }
+      registeredImageIds.delete(visual.imageId)
       markerVisuals.delete(key)
     }
   }
@@ -419,25 +473,52 @@
     }
   }
 
-  function ensureResources(styleLoadEvent = false) {
-    if (!map || (!styleLoadEvent && !map.isStyleLoaded())) {
+  async function ensureResources(
+    styleLoadEvent = false,
+    expectedStyleGeneration = styleGeneration,
+    expectedDataGeneration = dataGeneration,
+  ) {
+    const currentMap = map
+    if (!currentMap || (!styleLoadEvent && !currentMap.isStyleLoaded())) {
       return
     }
 
-    ensureMarkerImages(map)
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, {
+    const visuals = new Set(points.map(point => getMarkerVisual(point)))
+    await ensureMarkerImages(currentMap, visuals, expectedStyleGeneration, expectedDataGeneration)
+    if (map === currentMap && expectedStyleGeneration === styleGeneration && expectedDataGeneration !== dataGeneration) {
+      await ensureResources(styleLoadEvent, expectedStyleGeneration, dataGeneration)
+      return
+    }
+    if (
+      map !== currentMap
+      || expectedStyleGeneration !== styleGeneration
+      || expectedDataGeneration !== dataGeneration
+      || (!styleLoadEvent && !currentMap.isStyleLoaded())
+    ) {
+      return
+    }
+
+    if (!currentMap.getSource(sourceId)) {
+      currentMap.addSource(sourceId, {
         type: 'geojson',
         data: buildGeoJSON(),
       })
       markDataApplied()
     }
     else {
-      updateSourceData(map)
+      updateSourceData(currentMap)
     }
 
-    addLayers(map)
-    attachEvents(map)
+    if (
+      map !== currentMap
+      || expectedStyleGeneration !== styleGeneration
+      || expectedDataGeneration !== dataGeneration
+      || !currentMap.getSource(sourceId)
+    ) {
+      return
+    }
+    addLayers(currentMap)
+    attachEvents(currentMap)
     applyFilters()
     applyThemeColors()
     maybeEmitReady()
@@ -449,7 +530,7 @@
     }
     ensureFrame = requestAnimationFrame(() => {
       ensureFrame = null
-      ensureResources()
+      void ensureResources()
     })
   }
 
@@ -474,11 +555,12 @@
     if (currentMap.getSource(sourceId)) {
       currentMap.removeSource(sourceId)
     }
-    for (const visual of markerVisuals.values()) {
-      if (currentMap.hasImage(visual.imageId)) {
-        currentMap.removeImage(visual.imageId)
+    for (const imageId of registeredImageIds) {
+      if (currentMap.hasImage(imageId)) {
+        currentMap.removeImage(imageId)
       }
     }
+    registeredImageIds.clear()
   }
 
   onMount(() => {
@@ -493,7 +575,10 @@
       hoveredPoint = null
       tooltip = null
     }
-    const handleStyleLoad = () => ensureResources(true)
+    const handleStyleLoad = () => {
+      styleGeneration += 1
+      void ensureResources(true, styleGeneration)
+    }
     const handleStyleData = () => {
       if (currentMap.isStyleLoaded() && resourcesAreMissing(currentMap)) {
         currentMap.getCanvas().style.cursor = ''
@@ -505,7 +590,12 @@
     const handleSourceData = (event: { sourceId?: string }) => {
       if (event.sourceId === sourceId) {
         if (currentMap.isSourceLoaded(sourceId)) {
-          pruneUnusedMarkerImages(currentMap)
+          if (sourceDataNeedsUpdate()) {
+            void ensureResources(true, styleGeneration, dataGeneration)
+          }
+          else {
+            pruneUnusedMarkerImages(currentMap)
+          }
         }
         maybeEmitReady()
       }
@@ -515,7 +605,7 @@
     currentMap.on('styledata', handleStyleData)
     currentMap.on('sourcedata', handleSourceData)
     currentMap.on('movestart', handleMoveStart)
-    ensureResources()
+    void ensureResources()
 
     return () => {
       currentMap.off('style.load', handleStyleLoad)
@@ -532,6 +622,9 @@
         ensureFrame = null
       }
       removeResources(currentMap)
+      styleGeneration += 1
+      dataGeneration += 1
+      pendingMarkerImages.clear()
       markerVisuals.clear()
       map = null
     }
@@ -541,10 +634,13 @@
     void points
     void color
     void size
+    void icon
+    void iconColor
     void ctx.resolvedMode
     void strokeColor
+    dataGeneration += 1
     if (map?.isStyleLoaded()) {
-      updateSourceData(map)
+      void ensureResources(false, styleGeneration, dataGeneration)
     }
   })
 

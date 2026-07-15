@@ -259,10 +259,26 @@
   const hasActivePopup = $derived(ctx.activePopupMarkerId === markerId)
   const isActive = $derived(hasActivePopup || active)
 
+  function handleKeydown(event: KeyboardEvent) {
+    if (!onclick || (event.key !== 'Enter' && event.key !== ' ')) {
+      return
+    }
+    event.preventDefault()
+    onclick()
+  }
+
   onMount(() => {
     const map = ctx.map
     if (!map || !markerElement)
       return
+
+    const handleElementClick = (event: MouseEvent) => {
+      if (onclick) {
+        event.stopPropagation()
+        onclick()
+      }
+    }
+    markerElement.addEventListener('click', handleElementClick)
 
     ctx.registerMarker({ id: markerId, lngLat, clusterable, size })
 
@@ -285,6 +301,7 @@
     }
 
     return () => {
+      markerElement.removeEventListener('click', handleElementClick)
       ctx.unregisterMarker(markerId)
       marker?.remove()
       marker = null
@@ -308,6 +325,7 @@
   })
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   bind:this={markerElement}
   class='shadcn-marker {size} {className}'
@@ -325,16 +343,10 @@
   style:--badge-icon-size='{sizeConfig.badgeIconSize}px'
   style:--badge-offset='{sizeConfig.badgeOffset}px'
   style:display={isClustered ? 'none' : undefined}
-  onclick={(event) => {
-    if (onclick) {
-      event.stopPropagation()
-      onclick()
-    }
-  }}
-  onkeydown={e => e.key === 'Enter' && onclick?.()}
-  role='button'
-  tabindex={isClustered ? -1 : 0}
-  aria-label={label || 'Map marker'}
+  onkeydown={handleKeydown}
+  role={onclick ? 'button' : undefined}
+  tabindex={isClustered ? -1 : (onclick ? 0 : undefined)}
+  aria-label={onclick ? (label || 'Map marker') : undefined}
   aria-hidden={isClustered ? 'true' : undefined}
   data-label={label}
 >

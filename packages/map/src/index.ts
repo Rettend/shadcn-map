@@ -4,6 +4,8 @@ export type {
   DetailsPanelProps,
   GeolocateControlProps,
   MapProps,
+  MarkerLayerIcon,
+  MarkerLayerIconValue,
   MarkerLayerPoint,
   MarkerLayerProps,
   MarkerProps,
