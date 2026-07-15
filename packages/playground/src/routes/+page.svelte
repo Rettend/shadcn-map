@@ -1,4 +1,5 @@
 <script lang='ts'>
+  import type { LocationItem } from '$lib/data/markers.svelte'
   import type { MapLibreMap, MarkerBadge, MarkerLayerPoint } from 'shadcn-map'
 
   import DesktopSidebar from '$lib/components/locator/DesktopSidebar.svelte'
@@ -31,6 +32,18 @@
         position: 'bottom-left',
       },
     ],
+  }
+
+  function getLocationMarkerIcon(location: LocationItem) {
+    if (location.hasParking && location.hasWifi && location.isPetFriendly)
+      return 'i-ph:star-four-fill'
+    if (location.hasParking && !location.hasWifi)
+      return 'i-ph:car-fill'
+    if (location.hasWifi && !location.hasParking)
+      return 'i-ph:wifi-high-bold'
+    if (location.isPetFriendly && !location.hasParking && !location.hasWifi)
+      return 'i-ph:paw-print-fill'
+    return 'i-ph:map-pin-fill'
   }
 
   function updateViewportFromMap() {
@@ -241,7 +254,15 @@
     lngLat: location.lngLat,
     label: location.name,
     color: '#2563eb',
+    icon: getLocationMarkerIcon(location),
   })))
+
+  function handleSelectedMarkerClick() {
+    const location = selected
+    if (location) {
+      selectLocationMarker(location.id, location.lngLat)
+    }
+  }
 
   function ensureVisibleWhenOpeningMobileDrawer(lngLat: [number, number]) {
     if (!isMobile || !mapRef) {
@@ -301,8 +322,8 @@
   };`}
 >
   <div class='px-3 py-2 border rounded-lg bg-background/92 w-[min(22rem,calc(100%-1.5rem))] pointer-events-none shadow-lg left-1/2 top-3 absolute z-10 backdrop-blur -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-4'>
-    <p class='text-sm font-medium'>SVG badge example</p>
-    <p class='text-xs text-muted-foreground'>The highlighted purple marker near downtown Budapest renders its top-right badge from inline `svgBody` markup.</p>
+    <p class='text-sm font-medium'>GPU icons + DOM escape hatch</p>
+    <p class='text-xs text-muted-foreground'>Blue markers use varied layer icons. The purple star is a DOM marker with an inline SVG badge.</p>
   </div>
 
   <!-- tiles='/hungary.pmtiles' -->
@@ -358,14 +379,12 @@
         color='bg-[#2563eb] dark:bg-[#2563eb]'
         textColor='text-white'
         ringColor='ring-blue-500/50'
-        icon='i-ph:map-pin-fill'
+        icon={getLocationMarkerIcon(selected)}
         label={selected.name}
         badges={markerBadgesById.get(selected.id) ?? []}
         active
         clusterable={false}
-        onclick={() => {
-          selectLocationMarker(selected.id, selected.lngLat)
-        }}
+        onclick={handleSelectedMarkerClick}
       />
     {/if}
 
