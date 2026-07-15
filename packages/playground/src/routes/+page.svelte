@@ -1,11 +1,11 @@
 <script lang='ts'>
-  import type { MapLibreMap, MarkerBadge } from 'shadcn-map'
+  import type { MapLibreMap, MarkerBadge, MarkerLayerPoint } from 'shadcn-map'
 
   import DesktopSidebar from '$lib/components/locator/DesktopSidebar.svelte'
   import MobilePanel from '$lib/components/locator/MobilePanel.svelte'
   import { locations } from '$lib/data/markers.svelte'
   import { createLocationsStore } from '$lib/stores/markers.svelte'
-  import { GeolocateControl, Map as MapView, Marker, NavigationControl, Popup, ScaleControl } from 'shadcn-map'
+  import { GeolocateControl, Map as MapView, Marker, MarkerLayer, NavigationControl, Popup, ScaleControl } from 'shadcn-map'
 
   const store = createLocationsStore(locations)
   let mapRef = $state<MapLibreMap | null>(null)
@@ -155,6 +155,16 @@
     }
   }
 
+  function selectLocationMarker(id: string, lngLat: [number, number]) {
+    store.selectedId = id
+    if (isMobile) {
+      ensureVisibleWhenOpeningMobileDrawer(lngLat)
+      store.drawerMode = 'details'
+      store.drawerExpanded = true
+      store.drawerCollapsed = false
+    }
+  }
+
   function closeDetailsMobile() {
     store.drawerMode = 'browse'
     store.drawerExpanded = false
@@ -226,6 +236,12 @@
   })
 
   const selected = $derived.by(() => store.all.find(w => w.id === store.selectedId) ?? null)
+  const layerMarkers = $derived<MarkerLayerPoint[]>(store.filtered.map(location => ({
+    id: location.id,
+    lngLat: location.lngLat,
+    label: location.name,
+    color: '#2563eb',
+  })))
 
   function ensureVisibleWhenOpeningMobileDrawer(lngLat: [number, number]) {
     if (!isMobile || !mapRef) {
@@ -262,6 +278,18 @@
     }
     return map
   })
+
+  $effect(() => {
+    const selectedId = store.selectedId
+    if (selectedId && !store.filtered.some(location => location.id === selectedId)) {
+      store.selectedId = null
+      if (isMobile) {
+        store.drawerMode = 'browse'
+        store.drawerExpanded = false
+        store.drawerCollapsed = false
+      }
+    }
+  })
 </script>
 
 <div
@@ -272,7 +300,7 @@
       : '0px'
   };`}
 >
-  <div class='pointer-events-none absolute left-1/2 top-3 z-10 w-[min(22rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-lg border bg-background/92 px-3 py-2 shadow-lg backdrop-blur sm:left-auto sm:right-4 sm:translate-x-0'>
+  <div class='px-3 py-2 border rounded-lg bg-background/92 w-[min(22rem,calc(100%-1.5rem))] pointer-events-none shadow-lg left-1/2 top-3 absolute z-10 backdrop-blur -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-4'>
     <p class='text-sm font-medium'>SVG badge example</p>
     <p class='text-xs text-muted-foreground'>The highlighted purple marker near downtown Budapest renders its top-right badge from inline `svgBody` markup.</p>
   </div>
@@ -284,15 +312,12 @@
     zoom={12}
     maxZoom={15}
     labels='roads'
-    autoCluster
-    autoClusterRadius={50}
-    autoClusterMaxZoom={13}
     onload={(m) => {
       mapRef = m
       applyDynamicCameraLimits(m)
       updateViewportFromMap()
     }}
-    onmove={() => updateViewportFromMap()}
+    onmoveend={() => updateViewportFromMap()}
     onclick={() => {
       if (isMobile) {
         // Map click on mobile closes details mode.
@@ -319,32 +344,36 @@
       clusterable={false}
     />
 
-    {#each store.filtered as w (w.id)}
+    <MarkerLayer
+      points={layerMarkers}
+      hiddenId={selected?.id ?? null}
+      onclick={(point) => {
+        selectLocationMarker(String(point.id), point.lngLat)
+      }}
+    />
+
+    {#if selected}
       <Marker
-        lngLat={w.lngLat}
-        color='bg-blue-600 dark:bg-blue-600'
+        lngLat={selected.lngLat}
+        color='bg-[#2563eb] dark:bg-[#2563eb]'
         textColor='text-white'
         ringColor='ring-blue-500/50'
         icon='i-ph:map-pin-fill'
-        label={w.name}
-        badges={markerBadgesById.get(w.id) ?? []}
-        active={store.selectedId === w.id}
+        label={selected.name}
+        badges={markerBadgesById.get(selected.id) ?? []}
+        active
+        clusterable={false}
         onclick={() => {
-          store.selectedId = w.id
-          if (isMobile) {
-            ensureVisibleWhenOpeningMobileDrawer(w.lngLat)
-            store.drawerMode = 'details'
-            store.drawerExpanded = true
-            store.drawerCollapsed = false
-          }
+          selectLocationMarker(selected.id, selected.lngLat)
         }}
       />
-    {/each}
+    {/if}
 
     {#if !isMobile && selected}
       <Popup
         lngLat={selected.lngLat}
         open
+        closeOnClick={false}
         onclose={() => {
           store.selectedId = null
         }}
