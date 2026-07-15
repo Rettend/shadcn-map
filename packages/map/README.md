@@ -71,11 +71,37 @@ bun i svelte@^5.0.0 bits-ui mode-watcher
 <Marker lngLat={[-74.006, 40.7128]} badges={badges} />
 ```
 
+### Bulk markers
+
+Use `<MarkerLayer>` for hundreds or thousands of non-clustered markers. It renders one GeoJSON source with MapLibre circle and symbol layers instead of creating a DOM node and `maplibregl.Marker` for every point.
+
+```svelte
+<script lang="ts">
+  import { Map, MarkerLayer } from 'shadcn-map'
+
+  const locations = [
+    { id: 'nyc', lngLat: [-74.006, 40.7128], label: 'New York' },
+    { id: 'phl', lngLat: [-75.1652, 39.9526], label: 'Philadelphia' },
+  ]
+</script>
+
+<Map tiles="/region.pmtiles">
+  <MarkerLayer
+    points={locations}
+    color="#2563eb"
+    onclick={point => console.log(point.label)}
+  />
+</Map>
+```
+
+Marker IDs must be stable and unique. Replace the `points` array to update the source. `<MarkerLayer>` currently supports the built-in map-pin visual, concrete MapLibre color strings, sizes, active rings, and pointer events. Use the DOM-based `<Marker>` when you need badges, dragging, keyboard focus, or arbitrary HTML.
+
 ## Components
 
 - **Map**:
   - **`<Map>`**: The core container. Renders MapLibre GL.
   - **`<Marker>`**: Styled pins with shadcn theme colors, icons and badges.
+  - **`<MarkerLayer>`**: GPU-rendered bulk markers for large datasets.
   - **`<ClusterLayer>`**: Auto-clustering for markers.
 - **UI**:
   - **`<Popup>`**: In-place info popup.

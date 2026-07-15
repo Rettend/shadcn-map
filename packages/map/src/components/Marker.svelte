@@ -325,7 +325,12 @@
   style:--badge-icon-size='{sizeConfig.badgeIconSize}px'
   style:--badge-offset='{sizeConfig.badgeOffset}px'
   style:display={isClustered ? 'none' : undefined}
-  onclick={() => onclick?.()}
+  onclick={(event) => {
+    if (onclick) {
+      event.stopPropagation()
+      onclick()
+    }
+  }}
   onkeydown={e => e.key === 'Enter' && onclick?.()}
   role='button'
   tabindex={isClustered ? -1 : 0}

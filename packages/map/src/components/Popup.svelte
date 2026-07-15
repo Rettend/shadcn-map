@@ -8,6 +8,8 @@
     open?: boolean
     /** Close callback */
     onclose?: () => void
+    /** Close the popup when the map is clicked */
+    closeOnClick?: boolean
     /** Additional CSS classes */
     class?: string
     /** Offset from anchor point (number = uniform, array = [x, y], or 'auto' for auto-detected) */
@@ -26,6 +28,7 @@
     lngLat,
     open = true,
     onclose,
+    closeOnClick = true,
     class: className = '',
     offset = 'auto',
     children,
@@ -90,7 +93,7 @@
 
     popup = new maplibregl.Popup({
       closeButton: true,
-      closeOnClick: true,
+      closeOnClick,
       offset: computedOffset,
       anchor: 'bottom',
       className: 'shadcn-map-popup',

@@ -39,6 +39,8 @@
     onclick?: (e: { lngLat: [number, number], point: { x: number, y: number } }) => void
     /** Callback when camera moves */
     onmove?: (e: { center: [number, number], zoom: number }) => void
+    /** Callback when camera movement finishes */
+    onmoveend?: (e: { center: [number, number], zoom: number }) => void
     /** Callback when zoom changes */
     onzoom?: (zoom: number) => void
     /** Children */
@@ -81,6 +83,7 @@
     onload,
     onclick,
     onmove,
+    onmoveend,
     onzoom: onzoomCallback,
     children,
     autoCluster = false,
@@ -223,8 +226,22 @@
     })
 
     mapInstance.on('move', () => {
+      if (!onmove) {
+        return
+      }
       const center = mapInstance.getCenter()
-      onmove?.({
+      onmove({
+        center: [center.lng, center.lat],
+        zoom: mapInstance.getZoom(),
+      })
+    })
+
+    mapInstance.on('moveend', () => {
+      if (!onmoveend) {
+        return
+      }
+      const center = mapInstance.getCenter()
+      onmoveend({
         center: [center.lng, center.lat],
         zoom: mapInstance.getZoom(),
       })
