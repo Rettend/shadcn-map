@@ -6,7 +6,7 @@
   import MobilePanel from '$lib/components/locator/MobilePanel.svelte'
   import { locations } from '$lib/data/markers.svelte'
   import { createLocationsStore } from '$lib/stores/markers.svelte'
-  import { GeolocateControl, Map as MapView, Marker, MarkerLayer, NavigationControl, Popup, ScaleControl } from 'shadcn-map'
+  import { GeolocateControl, Map as MapView, MarkerLayer, NavigationControl, Popup, ScaleControl } from 'shadcn-map'
 
   const store = createLocationsStore(locations)
   let mapRef = $state<MapLibreMap | null>(null)
@@ -41,6 +41,15 @@
       },
     ],
   }
+  const svgBadgeLayerPoints: MarkerLayerPoint[] = [{
+    id: 'svg-badge-example',
+    lngLat: svgBadgeExample.lngLat,
+    label: 'GPU inline SVG badges',
+    color: '#7e22ce',
+    size: 'lg',
+    icon: locationMarkerIcons.star,
+    badges: svgBadgeExample.badges,
+  }]
 
   function getLocationMarkerIcon(location: LocationItem): MarkerIcon {
     if (location.hasParking && location.hasWifi && location.isPetFriendly)
@@ -52,6 +61,17 @@
     if (location.isPetFriendly && !location.hasParking && !location.hasWifi)
       return locationMarkerIcons.paw
     return locationMarkerIcons.pin
+  }
+
+  function getLocationMarkerBadges(location: LocationItem): MarkerBadge[] {
+    const badges: MarkerBadge[] = []
+    if (location.hasParking)
+      badges.push({ icon: 'i-ph:car-fill', color: 'bg-blue-600', label: 'Parking', position: 'top-right' })
+    if (location.hasWifi)
+      badges.push({ icon: 'i-ph:wifi-high-bold', color: 'bg-red-600', label: 'Wi-Fi', position: 'top-right' })
+    if (location.isPetFriendly)
+      badges.push({ icon: 'i-ph:paw-print-fill', color: 'bg-emerald-600', label: 'Pet Friendly', position: 'top-right' })
+    return badges
   }
 
   function updateViewportFromMap() {
@@ -263,14 +283,8 @@
     label: location.name,
     color: '#2563eb',
     icon: getLocationMarkerIcon(location),
+    badges: getLocationMarkerBadges(location),
   })))
-
-  function handleSelectedMarkerClick() {
-    const location = selected
-    if (location) {
-      selectLocationMarker(location.id, location.lngLat)
-    }
-  }
 
   function ensureVisibleWhenOpeningMobileDrawer(lngLat: [number, number]) {
     if (!isMobile || !mapRef) {
@@ -292,21 +306,6 @@
     // Move the map just enough so the marker ends up above the opening drawer.
     mapRef.panBy([0, delta], { duration: 260 })
   }
-
-  const markerBadgesById = $derived.by(() => {
-    const map = new Map<string, MarkerBadge[]>()
-    for (const w of store.filtered) {
-      const badges: MarkerBadge[] = []
-      if (w.hasParking)
-        badges.push({ icon: 'i-ph:car-fill', color: 'bg-blue-600', label: 'Parking', position: 'top-right' })
-      if (w.hasWifi)
-        badges.push({ icon: 'i-ph:wifi-high-bold', color: 'bg-red-600', label: 'Wi-Fi', position: 'top-right' })
-      if (w.isPetFriendly)
-        badges.push({ icon: 'i-ph:paw-print-fill', color: 'bg-emerald-600', label: 'Pet Friendly', position: 'top-right' })
-      map.set(w.id, badges)
-    }
-    return map
-  })
 
   $effect(() => {
     const selectedId = store.selectedId
@@ -330,8 +329,8 @@
   };`}
 >
   <div class='px-3 py-2 border rounded-lg bg-background/92 w-[min(22rem,calc(100%-1.5rem))] pointer-events-none shadow-lg left-1/2 top-3 absolute z-10 backdrop-blur -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-4'>
-    <p class='text-sm font-medium'>GPU icons + DOM escape hatch</p>
-    <p class='text-xs text-muted-foreground'>Blue markers use varied layer icons. The purple star is a DOM marker with an inline SVG badge.</p>
+    <p class='text-sm font-medium'>GPU marker icons + badges</p>
+    <p class='text-xs text-muted-foreground'>All markers and badges use GPU layers. Hover grouped badges to expand them.</p>
   </div>
 
   <!-- tiles='/hungary.pmtiles' -->
@@ -360,41 +359,18 @@
       }
     }}
   >
-    <Marker
-      lngLat={svgBadgeExample.lngLat}
-      color='bg-violet-700 dark:bg-violet-700'
-      textColor='text-white'
-      ringColor='ring-violet-500/45'
-      size='lg'
-      icon='i-ph:star-four-fill'
-      label='SVG badge example'
-      badges={svgBadgeExample.badges}
-      active
-      clusterable={false}
+    <MarkerLayer
+      points={svgBadgeLayerPoints}
+      activeId='svg-badge-example'
     />
 
     <MarkerLayer
       points={layerMarkers}
-      hiddenId={selected?.id ?? null}
+      activeId={selected?.id ?? null}
       onclick={(point) => {
         selectLocationMarker(String(point.id), point.lngLat)
       }}
     />
-
-    {#if selected}
-      <Marker
-        lngLat={selected.lngLat}
-        color='bg-[#2563eb] dark:bg-[#2563eb]'
-        textColor='text-white'
-        ringColor='ring-blue-500/50'
-        icon={getLocationMarkerIcon(selected)}
-        label={selected.name}
-        badges={markerBadgesById.get(selected.id) ?? []}
-        active
-        clusterable={false}
-        onclick={handleSelectedMarkerClick}
-      />
-    {/if}
 
     {#if !isMobile && selected}
       <Popup
