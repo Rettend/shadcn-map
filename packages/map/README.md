@@ -111,7 +111,9 @@ Icons can be an Iconify/UnoCSS class or trusted inline SVG body:
 />
 ```
 
-Marker IDs must be stable and unique. Replace the `points` array to update the source. Dynamically generated Iconify class names must be included in your UnoCSS safelist so their CSS is available at runtime. `<MarkerLayer>` supports concrete CSS colors, per-point icons and sizes, active rings, hover labels, and pointer events. Use the DOM-based `<Marker>` when you need badges, dragging, keyboard focus, or arbitrary HTML.
+The same inline SVG icon object can be passed to `<Marker>`, allowing a selected DOM marker to reuse the exact visual from `<MarkerLayer>`. Layer images are resolved before their source and layers are added, so a marker does not swap from a temporary default to its custom icon.
+
+Marker IDs must be stable and unique. Replace the `points` array to update the source. Dynamically generated Iconify class names must be included in your UnoCSS safelist so their CSS is available at runtime. Custom layer icons are rasterized through a Blob URL, so strict Content Security Policies should allow `blob:` in `img-src`; otherwise the layer uses its default icon. `<MarkerLayer>` supports concrete CSS colors, per-point icons and sizes, active rings, hover labels, and pointer events. Use the DOM-based `<Marker>` when you need badges, dragging, keyboard focus, or arbitrary HTML.
 
 ## Components
 

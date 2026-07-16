@@ -1,6 +1,6 @@
 <script lang='ts'>
   import type { LocationItem } from '$lib/data/markers.svelte'
-  import type { MapLibreMap, MarkerBadge, MarkerLayerPoint } from 'shadcn-map'
+  import type { MapLibreMap, MarkerBadge, MarkerIcon, MarkerLayerPoint } from 'shadcn-map'
 
   import DesktopSidebar from '$lib/components/locator/DesktopSidebar.svelte'
   import MobilePanel from '$lib/components/locator/MobilePanel.svelte'
@@ -10,6 +10,14 @@
 
   const store = createLocationsStore(locations)
   let mapRef = $state<MapLibreMap | null>(null)
+
+  const locationMarkerIcons = {
+    pin: { svgBody: '<path fill="currentColor" d="M128 16a88.1 88.1 0 0 0-88 88c0 75.3 80 132.17 83.41 134.55a8 8 0 0 0 9.18 0C136 236.17 216 179.3 216 104a88.1 88.1 0 0 0-88-88m0 56a32 32 0 1 1-32 32a32 32 0 0 1 32-32"/>' },
+    car: { svgBody: '<path fill="currentColor" d="M240 112v96a8 8 0 0 1-8 8h-16a24 24 0 0 1-24-24v-8H64v8a24 24 0 0 1-24 24H24a8 8 0 0 1-8-8v-96l25.06-56.4A24 24 0 0 1 63 40h130a24 24 0 0 1 21.94 14.6Zm-188.3-8h152.6l-18.66-42H70.36ZM64 144a12 12 0 1 0-12 12a12 12 0 0 0 12-12m152 0a12 12 0 1 0-12 12a12 12 0 0 0 12-12"/>' },
+    wifi: { svgBody: '<path fill="currentColor" d="M140 204a12 12 0 1 1-12-12a12 12 0 0 1 12 12M237.08 87A172 172 0 0 0 18.92 87A12 12 0 0 0 34.1 105.6a148 148 0 0 1 187.8 0A12 12 0 0 0 237.08 87M128 112a108 108 0 0 0-68.69 24.55a12 12 0 0 0 15.27 18.51a84 84 0 0 1 106.84 0a12 12 0 0 0 15.27-18.51A108 108 0 0 0 128 112m0 56a52 52 0 0 0-34.15 12.77a12 12 0 0 0 15.8 18.07a28 28 0 0 1 36.7 0a12 12 0 1 0 15.8-18.07A52 52 0 0 0 128 168"/>' },
+    paw: { svgBody: '<path fill="currentColor" d="M212 84a28 28 0 1 1-28-28a28 28 0 0 1 28 28M72 112a28 28 0 1 0-28-28a28 28 0 0 0 28 28m56-8a32 32 0 1 0-32-32a32 32 0 0 0 32 32m57.07 64c-14.89-17-36.74-40-57.07-40s-42.18 23-57.07 40C58.33 182.35 48 197.69 48 211.65c0 10.59 8.72 28.35 41.19 28.35c15.66 0 28.72-6.5 38.81-6.5s23.15 6.5 38.81 6.5c32.47 0 41.19-17.76 41.19-28.35c0-13.96-10.33-29.3-22.93-43.65"/>' },
+    star: { svgBody: '<path fill="currentColor" d="M239.2 97.4A16.4 16.4 0 0 0 224.6 83l-59.4-4.1l-22-55.5A16.4 16.4 0 0 0 128 13a16.4 16.4 0 0 0-15.2 10.4l-22 55.5L31.4 83a16.5 16.5 0 0 0-14.6 14.4A16.8 16.8 0 0 0 26 114l45.7 38.4l-14.4 58a16.8 16.8 0 0 0 6.1 17.3a16.5 16.5 0 0 0 18.4.6l46.2-31.7l46.2 31.7a16.5 16.5 0 0 0 18.4-.6a16.8 16.8 0 0 0 6.1-17.3l-14.4-58L230 114a16.8 16.8 0 0 0 9.2-16.6"/>' },
+  } satisfies Record<string, MarkerIcon>
 
   let isMobile = $state(false)
   const hungaryBounds: [[number, number], [number, number]] = [[16.1, 45.72], [22.93, 48.62]]
@@ -34,16 +42,16 @@
     ],
   }
 
-  function getLocationMarkerIcon(location: LocationItem) {
+  function getLocationMarkerIcon(location: LocationItem): MarkerIcon {
     if (location.hasParking && location.hasWifi && location.isPetFriendly)
-      return 'i-ph:star-four-fill'
+      return locationMarkerIcons.star
     if (location.hasParking && !location.hasWifi)
-      return 'i-ph:car-fill'
+      return locationMarkerIcons.car
     if (location.hasWifi && !location.hasParking)
-      return 'i-ph:wifi-high-bold'
+      return locationMarkerIcons.wifi
     if (location.isPetFriendly && !location.hasParking && !location.hasWifi)
-      return 'i-ph:paw-print-fill'
-    return 'i-ph:map-pin-fill'
+      return locationMarkerIcons.paw
+    return locationMarkerIcons.pin
   }
 
   function updateViewportFromMap() {

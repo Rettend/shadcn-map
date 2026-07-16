@@ -1,15 +1,7 @@
-import type { MarkerSize } from '../types'
+import type { MarkerIcon, MarkerIconValue, MarkerSize } from '../types'
 
-export interface MarkerLayerIcon {
-  /** Trusted SVG body markup, without the outer svg element. */
-  svgBody: string
-  /** SVG viewBox width. */
-  svgWidth?: number
-  /** SVG viewBox height. */
-  svgHeight?: number
-}
-
-export type MarkerLayerIconValue = string | MarkerLayerIcon
+export type MarkerLayerIcon = MarkerIcon
+export type MarkerLayerIconValue = MarkerIconValue
 
 export const markerVisualSizes: Record<MarkerSize, { diameter: number, iconSize: number }> = {
   sm: { diameter: 28, iconSize: 16 },
@@ -46,9 +38,9 @@ function decodeBase64Utf8(value: string) {
   return new TextDecoder().decode(bytes)
 }
 
-async function readSvgUrl(url: string) {
+async function readSvgUrl(url: string, signal: AbortSignal) {
   if (!url.startsWith('data:')) {
-    const response = await fetch(url)
+    const response = await fetch(url, { signal })
     if (!response.ok) {
       throw new Error(`Unable to load marker icon: ${response.status}`)
     }
@@ -88,20 +80,26 @@ async function resolveIconClass(iconClass: string) {
   }
 
   const resolution = (async () => {
+    const abortController = new AbortController()
+    const timeoutId = setTimeout(() => abortController.abort(), 5_000)
     const element = document.createElement('span')
-    element.className = iconClass
-    element.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;'
-    document.body.appendChild(element)
+    try {
+      element.className = iconClass
+      element.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;'
+      document.body.appendChild(element)
 
-    const style = getComputedStyle(element)
-    const mask = style.getPropertyValue('--un-icon') || style.maskImage || style.webkitMaskImage
-    element.remove()
-
-    const url = extractCssUrl(mask)
-    if (!url) {
-      return null
+      const style = getComputedStyle(element)
+      const mask = style.getPropertyValue('--un-icon') || style.maskImage || style.webkitMaskImage
+      const url = extractCssUrl(mask)
+      if (!url) {
+        return null
+      }
+      return parseSvg(await readSvgUrl(url, abortController.signal))
     }
-    return parseSvg(await readSvgUrl(url))
+    finally {
+      clearTimeout(timeoutId)
+      element.remove()
+    }
   })().catch(() => null)
 
   iconClassCache.set(iconClass, resolution)
@@ -133,7 +131,7 @@ async function resolveIcon(icon?: MarkerLayerIconValue) {
 }
 
 export interface CompositeMarkerImage {
-  image: HTMLImageElement | ImageData
+  image: ImageData
   pixelRatio: number
 }
 
@@ -188,17 +186,54 @@ export async function createCompositeMarkerImage(options: {
   const y = (diameter - iconSize) / 2
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${diameter * pixelRatio}" height="${diameter * pixelRatio}" viewBox="0 0 ${diameter} ${diameter}"><circle cx="${diameter / 2}" cy="${diameter / 2}" r="${diameter / 2 - 1}" fill="${escapeAttribute(options.color)}" stroke="${escapeAttribute(options.strokeColor)}" stroke-width="2"/><svg x="${x}" y="${y}" width="${iconSize}" height="${iconSize}" viewBox="0 0 ${iconWidth} ${iconHeight}" color="${escapeAttribute(options.iconColor)}">${icon.svgBody}</svg></svg>`
   const image = new Image()
+  let objectUrl: string | null = null
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
 
   try {
+    objectUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
     await new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve()
-      image.onerror = () => reject(new Error('Unable to rasterize the MarkerLayer icon.'))
-      image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+      let settled = false
+      const settle = (error?: Error) => {
+        if (settled) {
+          return
+        }
+        settled = true
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId)
+        }
+        error ? reject(error) : resolve()
+      }
+
+      timeoutId = setTimeout(() => settle(new Error('MarkerLayer icon rasterization timed out.')), 5_000)
+      image.onload = () => settle()
+      image.onerror = () => settle(new Error('Unable to rasterize the MarkerLayer icon.'))
+      image.src = objectUrl!
     })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = diameter * pixelRatio
+    canvas.height = diameter * pixelRatio
+    const context = canvas.getContext('2d')
+    if (!context) {
+      throw new Error('Unable to create the MarkerLayer icon canvas.')
+    }
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    return {
+      image: context.getImageData(0, 0, canvas.width, canvas.height),
+      pixelRatio,
+    }
   }
   catch {
     return createDefaultMarkerImage(options)
   }
-
-  return { image, pixelRatio }
+  finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+    }
+    image.onload = null
+    image.onerror = null
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }
 }
