@@ -28,6 +28,19 @@ export type MarkerColor = ThemeColorToken
  */
 export type MarkerSize = 'sm' | 'md' | 'lg'
 
+/** Trusted inline SVG icon used by DOM and GPU markers. */
+export interface MarkerIcon {
+  /** SVG body markup, without the outer svg element. */
+  svgBody: string
+  /** SVG viewBox width. */
+  svgWidth?: number
+  /** SVG viewBox height. */
+  svgHeight?: number
+}
+
+/** Iconify/UnoCSS class or trusted inline SVG icon. */
+export type MarkerIconValue = string | MarkerIcon
+
 /**
  * Badge position on a marker
  */

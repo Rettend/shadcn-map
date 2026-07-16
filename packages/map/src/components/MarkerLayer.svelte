@@ -116,6 +116,7 @@
   let appliedIconColor: string | null = null
   let appliedStrokeColor: string | null = null
   let nextVisualId = 0
+  let styleReady = true
   let styleGeneration = 0
   let dataGeneration = 0
   let tooltip = $state<{ x: number, y: number, label: string } | null>(null)
@@ -308,44 +309,57 @@
     currentMap: MapLibreMap,
     visuals: Set<MarkerVisual>,
     expectedStyleGeneration: number,
-    expectedDataGeneration: number,
   ) {
-    await Promise.all(Array.from(visuals, async (visual) => {
+    const results = await Promise.all(Array.from(visuals, async (visual) => {
       if (currentMap.hasImage(visual.imageId)) {
         registeredImageIds.add(visual.imageId)
-        return
+        return true
       }
       let pendingImage = pendingMarkerImages.get(visual.imageId)
       if (!pendingImage) {
-        pendingImage = createCompositeMarkerImage({
-          size: visual.size,
-          color: visual.color,
-          strokeColor: visual.strokeColor,
-          icon: visual.icon,
-          iconColor: visual.iconColor,
-        }).catch((error) => {
-          console.warn('[shadcn-map] Unable to render a custom MarkerLayer icon. Using the default icon.', error)
-          return createDefaultMarkerImage({
+        pendingImage = visual.icon
+          ? createCompositeMarkerImage({
+            size: visual.size,
+            color: visual.color,
+            strokeColor: visual.strokeColor,
+            icon: visual.icon,
+            iconColor: visual.iconColor,
+          }).catch((error) => {
+            console.warn('[shadcn-map] Unable to render a custom MarkerLayer icon. Using the default icon.', error)
+            return createDefaultMarkerImage({
+              size: visual.size,
+              color: visual.color,
+              strokeColor: visual.strokeColor,
+              iconColor: visual.iconColor,
+            })
+          })
+          : Promise.resolve(createDefaultMarkerImage({
             size: visual.size,
             color: visual.color,
             strokeColor: visual.strokeColor,
             iconColor: visual.iconColor,
-          })
-        })
+          }))
         pendingMarkerImages.set(visual.imageId, pendingImage)
       }
 
       try {
         const image = await pendingImage
         if (
-          map === currentMap
-          && expectedStyleGeneration === styleGeneration
-          && expectedDataGeneration === dataGeneration
-          && !currentMap.hasImage(visual.imageId)
+          map !== currentMap
+          || expectedStyleGeneration !== styleGeneration
+          || !styleReady
         ) {
-          currentMap.addImage(visual.imageId, image.image, { pixelRatio: image.pixelRatio })
-          registeredImageIds.add(visual.imageId)
+          return false
         }
+        if (!currentMap.hasImage(visual.imageId)) {
+          currentMap.addImage(visual.imageId, image.image, { pixelRatio: image.pixelRatio })
+        }
+        registeredImageIds.add(visual.imageId)
+        return true
+      }
+      catch (error) {
+        console.warn('[shadcn-map] Unable to register a MarkerLayer icon.', error)
+        return false
       }
       finally {
         if (pendingMarkerImages.get(visual.imageId) === pendingImage) {
@@ -353,6 +367,8 @@
         }
       }
     }))
+
+    return results.every(Boolean)
   }
 
   function markDataApplied() {
@@ -474,28 +490,26 @@
   }
 
   async function ensureResources(
-    styleLoadEvent = false,
     expectedStyleGeneration = styleGeneration,
     expectedDataGeneration = dataGeneration,
   ) {
     const currentMap = map
-    if (!currentMap || (!styleLoadEvent && !currentMap.isStyleLoaded())) {
+    if (!currentMap || !styleReady) {
       return
     }
 
     const visuals = new Set(points.map(point => getMarkerVisual(point)))
-    await ensureMarkerImages(currentMap, visuals, expectedStyleGeneration, expectedDataGeneration)
-    if (map === currentMap && expectedStyleGeneration === styleGeneration && expectedDataGeneration !== dataGeneration) {
-      await ensureResources(styleLoadEvent, expectedStyleGeneration, dataGeneration)
-      return
-    }
+    const imagesReady = await ensureMarkerImages(currentMap, visuals, expectedStyleGeneration)
     if (
-      map !== currentMap
+      !imagesReady
+      || map !== currentMap
       || expectedStyleGeneration !== styleGeneration
-      || expectedDataGeneration !== dataGeneration
-      || (!styleLoadEvent && !currentMap.isStyleLoaded())
+      || !styleReady
     ) {
       return
+    }
+    if (expectedDataGeneration !== dataGeneration) {
+      return ensureResources(styleGeneration, dataGeneration)
     }
 
     if (!currentMap.getSource(sourceId)) {
@@ -577,10 +591,15 @@
     }
     const handleStyleLoad = () => {
       styleGeneration += 1
-      void ensureResources(true, styleGeneration)
+      styleReady = true
+      void ensureResources(styleGeneration)
+    }
+    const handleStyleDataLoading = () => {
+      styleGeneration += 1
+      styleReady = false
     }
     const handleStyleData = () => {
-      if (currentMap.isStyleLoaded() && resourcesAreMissing(currentMap)) {
+      if (styleReady && resourcesAreMissing(currentMap)) {
         currentMap.getCanvas().style.cursor = ''
         hoveredPoint = null
         tooltip = null
@@ -591,7 +610,7 @@
       if (event.sourceId === sourceId) {
         if (currentMap.isSourceLoaded(sourceId)) {
           if (sourceDataNeedsUpdate()) {
-            void ensureResources(true, styleGeneration, dataGeneration)
+            void ensureResources(styleGeneration, dataGeneration)
           }
           else {
             pruneUnusedMarkerImages(currentMap)
@@ -602,6 +621,7 @@
     }
 
     currentMap.on('style.load', handleStyleLoad)
+    currentMap.on('styledataloading', handleStyleDataLoading)
     currentMap.on('styledata', handleStyleData)
     currentMap.on('sourcedata', handleSourceData)
     currentMap.on('movestart', handleMoveStart)
@@ -609,6 +629,7 @@
 
     return () => {
       currentMap.off('style.load', handleStyleLoad)
+      currentMap.off('styledataloading', handleStyleDataLoading)
       currentMap.off('styledata', handleStyleData)
       currentMap.off('sourcedata', handleSourceData)
       currentMap.off('movestart', handleMoveStart)
@@ -639,8 +660,8 @@
     void ctx.resolvedMode
     void strokeColor
     dataGeneration += 1
-    if (map?.isStyleLoaded()) {
-      void ensureResources(false, styleGeneration, dataGeneration)
+    if (map && styleReady) {
+      void ensureResources(styleGeneration, dataGeneration)
     }
   })
 

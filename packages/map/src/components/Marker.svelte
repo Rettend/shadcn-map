@@ -1,5 +1,5 @@
 <script lang='ts' module>
-  import type { BadgePosition, MarkerBadge, MarkerColor, MarkerSize } from '../types'
+  import type { BadgePosition, MarkerBadge, MarkerColor, MarkerIconValue, MarkerSize } from '../types'
 
   export interface MarkerProps {
     /** Marker position [lng, lat] */
@@ -20,8 +20,8 @@
     onclick?: () => void
     /** Drag end callback */
     ondragend?: (lngLat: [number, number]) => void
-    /** Icon class (Iconify/UnoCSS) */
-    icon?: string
+    /** Iconify/UnoCSS class or trusted inline SVG icon */
+    icon?: MarkerIconValue
     /** Include marker in auto clustering */
     clusterable?: boolean
     /** Badge(s) at corners. Same-position badges cluster into count. */
@@ -36,9 +36,9 @@
 <script lang='ts'>
   import maplibregl from 'maplibre-gl'
   import { onMount } from 'svelte'
-  import { buildBadgeSvgMarkup } from './badge-visual'
   import { getMapContext } from '../context.svelte'
   import { themeColorTokens } from '../theme'
+  import { buildBadgeSvgMarkup } from './badge-visual'
 
   const {
     lngLat,
@@ -351,8 +351,13 @@
   data-label={label}
 >
   <div class='marker-inner {markerColorClass} {markerTextClass} {isActive && ringColor ? `ring-4 ${ringColor}` : ''}' class:active-ring={isActive && ringColor} class:theme-ring={isActive && isThemeColor && !ringColor} class:fallback-ring={isActive && !ringColor && !isThemeColor}>
-    {#if icon}
+    {#if typeof icon === 'string'}
       <span class='marker-icon {icon}' aria-hidden='true'></span>
+    {:else if icon?.svgBody}
+      <span class='marker-icon marker-icon-svg' aria-hidden='true'>
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -- Trusted icon API input. -->
+        {@html buildBadgeSvgMarkup(icon.svgBody, icon.svgWidth, icon.svgHeight)}
+      </span>
     {:else}
       <div class='marker-dot'></div>
     {/if}
@@ -367,6 +372,7 @@
     >
       {#if badge.svgBody}
         <span class='badge-icon badge-icon-svg' aria-hidden='true'>
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -- Trusted badge API input. -->
           {@html buildBadgeSvgMarkup(badge.svgBody, badge.svgWidth, badge.svgHeight)}
         </span>
       {:else if badge.icon}
@@ -386,6 +392,7 @@
     >
       {#if badge.svgBody}
         <span class='badge-icon badge-icon-svg' aria-hidden='true'>
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -- Trusted badge API input. -->
           {@html buildBadgeSvgMarkup(badge.svgBody, badge.svgWidth, badge.svgHeight)}
         </span>
       {:else if badge.icon}
@@ -478,6 +485,18 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .marker-icon-svg {
+    width: 1em;
+    height: 1em;
+    line-height: 0;
+  }
+
+  .marker-icon-svg :global(svg) {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 
   /* Badge styles */

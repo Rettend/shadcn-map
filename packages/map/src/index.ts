@@ -20,4 +20,4 @@ export { createMapContext, getMapContext, type MapContextStore, type MarkerRegis
 export { colors, createDarkStyle, createLightStyle, darkStyle, lightStyle } from './styles'
 export { type ThemeColorToken, themeColorTokens } from './theme'
 
-export type { BadgePosition, ControlPosition, LabelMode, MapContext, MapLibreMap, MarkerBadge, MarkerColor, MarkerSize, StyleMode, StyleSpecification } from './types'
+export type { BadgePosition, ControlPosition, LabelMode, MapContext, MapLibreMap, MarkerBadge, MarkerColor, MarkerIcon, MarkerIconValue, MarkerSize, StyleMode, StyleSpecification } from './types'

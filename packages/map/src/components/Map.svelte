@@ -1,6 +1,60 @@
 <script lang='ts' module>
   import type { Snippet } from 'svelte'
   import type { LabelMode, MapLibreMap, StyleMode, StyleSpecification } from '../types'
+  import maplibregl from 'maplibre-gl'
+  import { FetchSource, PMTiles, Protocol } from 'pmtiles'
+
+  interface PmtilesProtocolState {
+    protocol: Protocol
+    users: number
+  }
+
+  const globalWithPmtilesRegistry = globalThis as typeof globalThis & {
+    __shadcnMapPmtilesProtocols?: WeakMap<object, PmtilesProtocolState>
+  }
+  const pmtilesProtocolRegistry = globalWithPmtilesRegistry.__shadcnMapPmtilesProtocols
+    ??= new WeakMap<object, PmtilesProtocolState>()
+  const maplibreRegistryKey = maplibregl as unknown as object
+
+  function getSharedPmtilesState(): PmtilesProtocolState {
+    const existing = pmtilesProtocolRegistry.get(maplibreRegistryKey)
+    if (existing) {
+      return existing
+    }
+    const created = { protocol: new Protocol(), users: 0 }
+    pmtilesProtocolRegistry.set(maplibreRegistryKey, created)
+    return created
+  }
+
+  const sharedPmtilesState = getSharedPmtilesState()
+
+  function registerPmtiles(tiles: string) {
+    const source = new FetchSource(tiles)
+    if (!sharedPmtilesState.protocol.get(source.getKey())) {
+      const sourceWithCacheFlags = source as FetchSource & {
+        chromeWindowsNoCache?: boolean
+      }
+      sourceWithCacheFlags.chromeWindowsNoCache = true
+      sharedPmtilesState.protocol.add(new PMTiles(source))
+    }
+
+    if (sharedPmtilesState.users === 0) {
+      maplibregl.addProtocol('pmtiles', sharedPmtilesState.protocol.tile)
+    }
+    sharedPmtilesState.users += 1
+  }
+
+  function unregisterPmtiles() {
+    if (sharedPmtilesState.users === 0) {
+      return
+    }
+
+    sharedPmtilesState.users -= 1
+    if (sharedPmtilesState.users === 0) {
+      maplibregl.removeProtocol('pmtiles')
+      sharedPmtilesState.protocol.tiles.clear()
+    }
+  }
 
   export interface MapProps {
     /** Initial center coordinates [lng, lat] */
@@ -55,8 +109,6 @@
 </script>
 
 <script lang='ts'>
-  import maplibregl from 'maplibre-gl'
-  import { FetchSource, PMTiles, Protocol } from 'pmtiles'
   import { onMount } from 'svelte'
   import { createMapContext } from '../context.svelte'
   import { createDarkStyle } from '../styles/dark'
@@ -154,7 +206,8 @@
     try {
       const canvas = document.createElement('canvas')
       return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl') || canvas.getContext('webgl2'))
-    } catch {
+    }
+    catch {
       return false
     }
   }
@@ -173,14 +226,7 @@
       return
     }
 
-    const protocol = new Protocol()
-    const source = new FetchSource(tiles)
-    const sourceWithCacheFlags = source as FetchSource & {
-      chromeWindowsNoCache?: boolean
-    }
-    sourceWithCacheFlags.chromeWindowsNoCache = true
-    protocol.add(new PMTiles(source))
-    maplibregl.addProtocol('pmtiles', protocol.tile)
+    registerPmtiles(tiles)
 
     let mapInstance: maplibregl.Map
     try {
@@ -200,7 +246,9 @@
         pitchWithRotate,
         fadeDuration: 0,
       })
-    } catch (e) {
+    }
+    catch (e) {
+      unregisterPmtiles()
       mapError = `Map initialization failed: ${e instanceof Error ? e.message : e}`
       console.error('[shadcn-map]', mapError)
       return
@@ -254,9 +302,29 @@
     // Only observe document dark class changes when style='auto'
     let observer: MutationObserver | null = null
     if (style === 'auto') {
+      let styleUpdatePending = false
+      const updateStyleWhenLoaded = () => {
+        if (mapInstance.isStyleLoaded()) {
+          mapInstance.setStyle(getStyle())
+          return
+        }
+        if (styleUpdatePending) {
+          return
+        }
+        styleUpdatePending = true
+        mapInstance.once('style.load', () => {
+          styleUpdatePending = false
+          mapInstance.setStyle(getStyle())
+        })
+      }
+
       observer = new MutationObserver(() => {
-        documentIsDark = getIsDarkMode()
-        mapInstance.setStyle(getStyle())
+        const nextDocumentIsDark = getIsDarkMode()
+        if (nextDocumentIsDark === documentIsDark) {
+          return
+        }
+        documentIsDark = nextDocumentIsDark
+        updateStyleWhenLoaded()
       })
 
       observer.observe(document.documentElement, {
@@ -267,10 +335,14 @@
 
     return () => {
       observer?.disconnect()
-      maplibregl.removeProtocol('pmtiles')
       ctx.setMap(null)
       ctx.setLoaded(false)
-      mapInstance.remove()
+      try {
+        mapInstance.remove()
+      }
+      finally {
+        unregisterPmtiles()
+      }
     }
   })
 </script>
@@ -279,7 +351,7 @@
   {#if mapError}
     <div class='shadcn-map-error'>
       <div class='shadcn-map-error-content'>
-        <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>
+        <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10' /><line x1='12' y1='8' x2='12' y2='12' /><line x1='12' y1='16' x2='12.01' y2='16' /></svg>
         <p>{mapError}</p>
       </div>
     </div>
