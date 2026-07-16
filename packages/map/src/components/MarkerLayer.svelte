@@ -1,8 +1,8 @@
 <script lang='ts' module>
   import type { MapLayerMouseEvent } from 'maplibre-gl'
-  import type { MarkerSize } from '../types'
+  import type { MarkerBadge, MarkerSize } from '../types'
   import type { CompositeMarkerImage } from './marker-layer-image'
-  import { createCompositeMarkerImage, createDefaultMarkerImage, markerVisualSizes } from './marker-layer-image'
+  import { createCompositeMarkerImage, createDefaultMarkerImage, getMarkerBadgeHitCircles, markerVisualSizes } from './marker-layer-image'
 
   export type MarkerLayerIcon = import('./marker-layer-image').MarkerLayerIcon
   export type MarkerLayerIconValue = import('./marker-layer-image').MarkerLayerIconValue
@@ -22,6 +22,8 @@
     icon?: MarkerLayerIconValue
     /** Per-point icon color override. */
     iconColor?: string
+    /** Per-point marker badges. Same-position badges collapse into a count and expand on hover. */
+    badges?: MarkerBadge[]
     /** Additional serializable properties copied to the GeoJSON feature. */
     properties?: Record<string, unknown>
   }
@@ -37,6 +39,8 @@
     icon?: MarkerLayerIconValue
     /** Fallback icon color. */
     iconColor?: string
+    /** Fallback marker badges. */
+    badges?: MarkerBadge[]
     /** Marker border color. Defaults to a map-mode-aware translucent color. */
     strokeColor?: string
     /** Marker shown with an active ring. */
@@ -60,7 +64,7 @@
 </script>
 
 <script lang='ts'>
-  import type { FeatureCollection, Point } from 'geojson'
+  import type { Feature, FeatureCollection, Point } from 'geojson'
   import type { FilterSpecification } from 'maplibre-gl'
   import type { GeoJSONSource, MapLibreMap } from '../types'
   import { onMount } from 'svelte'
@@ -72,6 +76,7 @@
     size = 'md',
     icon,
     iconColor = '#ffffff',
+    badges = [],
     strokeColor,
     activeId = null,
     hiddenId = null,
@@ -86,9 +91,12 @@
   const ctx = getMapContext()
   const instanceId = `shadcn-marker-layer-${Math.random().toString(36).slice(2)}`
   const sourceId = `${instanceId}-source`
+  const hoverSourceId = `${instanceId}-hover-source`
   const shadowLayerId = `${instanceId}-shadow`
   const activeLayerId = `${instanceId}-active`
   const markerLayerId = `${instanceId}-marker`
+  const hoverLayerId = `${instanceId}-hover`
+  const interactionLayerIds = [markerLayerId, hoverLayerId]
 
   type MarkerVisual = {
     imageId: string
@@ -97,6 +105,9 @@
     strokeColor: string
     icon?: MarkerLayerIconValue
     iconColor: string
+    badges: MarkerBadge[]
+    badgeStrokeColor: string
+    hoverImageId: string
   }
 
   let map: MapLibreMap | null = null
@@ -114,6 +125,7 @@
   let appliedSize: MarkerSize | null = null
   let appliedIcon: MarkerLayerIconValue | null | undefined = null
   let appliedIconColor: string | null = null
+  let appliedBadges: MarkerBadge[] | null = null
   let appliedStrokeColor: string | null = null
   let nextVisualId = 0
   let styleReady = true
@@ -139,81 +151,167 @@
     return ['default']
   }
 
+  function getBadgesKey(value: MarkerBadge[]) {
+    return value.map(badge => [
+      badge.icon,
+      badge.svgBody,
+      badge.svgWidth,
+      badge.svgHeight,
+      badge.color,
+      badge.textColor,
+      badge.position,
+    ])
+  }
+
   function getMarkerVisual(point: MarkerLayerPoint) {
     const resolvedSize = point.size ?? size
     const resolvedColor = point.color ?? color
     const resolvedStrokeColor = getResolvedStrokeColor()
     const resolvedIcon = point.icon ?? icon
     const resolvedIconColor = point.iconColor ?? iconColor
-    const key = JSON.stringify([resolvedSize, resolvedColor, resolvedStrokeColor, getIconKey(resolvedIcon), resolvedIconColor])
+    const resolvedBadges = point.badges ?? badges
+    const badgeStrokeColor = ctx.resolvedMode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)'
+    const key = JSON.stringify([resolvedSize, resolvedColor, resolvedStrokeColor, getIconKey(resolvedIcon), resolvedIconColor, getBadgesKey(resolvedBadges), badgeStrokeColor])
     let visual = markerVisuals.get(key)
     if (!visual) {
+      const imageId = `${instanceId}-visual-${nextVisualId++}`
+      const badgesByPosition = new Map<string, number>()
+      for (const badge of resolvedBadges) {
+        const position = badge.position ?? 'top-right'
+        badgesByPosition.set(position, (badgesByPosition.get(position) ?? 0) + 1)
+      }
+      const hasExpandableBadges = Array.from(badgesByPosition.values()).some(count => count > 1)
       visual = {
-        imageId: `${instanceId}-visual-${nextVisualId++}`,
+        imageId,
+        hoverImageId: hasExpandableBadges ? `${imageId}-hover` : imageId,
         size: resolvedSize,
         color: resolvedColor,
         strokeColor: resolvedStrokeColor,
         icon: resolvedIcon,
         iconColor: resolvedIconColor,
+        badges: resolvedBadges,
+        badgeStrokeColor,
       }
       markerVisuals.set(key, visual)
     }
     return visual
   }
 
-  function buildGeoJSON(): FeatureCollection<Point> {
-    pointsById = new Map(points.map(point => [pointKey(point.id), point]))
-
+  function buildFeature(point: MarkerLayerPoint, index: number): Feature<Point> {
+    const visual = getMarkerVisual(point)
     return {
-      type: 'FeatureCollection',
-      features: points.map((point, index) => ({
-        type: 'Feature',
-        id: point.id,
-        geometry: {
-          type: 'Point',
-          coordinates: point.lngLat,
-        },
-        properties: {
-          ...point.properties,
-          markerId: point.id,
-          markerLabel: point.label ?? '',
-          markerColor: point.color ?? color,
-          markerSize: point.size ?? size,
-          markerImage: getMarkerVisual(point).imageId,
-          markerOrder: index,
-        },
-      })),
+      type: 'Feature',
+      id: point.id,
+      geometry: {
+        type: 'Point',
+        coordinates: point.lngLat,
+      },
+      properties: {
+        ...point.properties,
+        markerId: point.id,
+        markerLabel: point.label ?? '',
+        markerColor: point.color ?? color,
+        markerSize: point.size ?? size,
+        markerImage: visual.imageId,
+        markerHoverImage: visual.hoverImageId,
+        markerOrder: index,
+      },
     }
   }
 
-  function getPointFromEvent(event: MapLayerMouseEvent) {
-    const feature = event.features?.[0]
-    const id = feature?.id ?? feature?.properties?.markerId
-    if (typeof id !== 'string' && typeof id !== 'number') {
-      return null
+  function buildGeoJSON(): FeatureCollection<Point> {
+    pointsById = new Map(points.map(point => [pointKey(point.id), point]))
+    return {
+      type: 'FeatureCollection',
+      features: points.map(buildFeature),
     }
-    return pointsById.get(pointKey(id)) ?? null
+  }
+
+  function buildHoverGeoJSON(): FeatureCollection<Point> {
+    if (!hoveredPoint || (hiddenId !== null && pointKey(hiddenId) === pointKey(hoveredPoint.id))) {
+      return { type: 'FeatureCollection', features: [] }
+    }
+    const visual = getMarkerVisual(hoveredPoint)
+    if (visual.hoverImageId === visual.imageId) {
+      return { type: 'FeatureCollection', features: [] }
+    }
+    return {
+      type: 'FeatureCollection',
+      features: [buildFeature(hoveredPoint, 0)],
+    }
+  }
+
+  function updateHoverSourceData() {
+    const source = map?.getSource(hoverSourceId) as GeoJSONSource | undefined
+    source?.setData(buildHoverGeoJSON())
+  }
+
+  function getHitFromEvent(event: MapLayerMouseEvent) {
+    for (const feature of event.features ?? []) {
+      const id = feature.id ?? feature.properties?.markerId
+      if (typeof id !== 'string' && typeof id !== 'number') {
+        continue
+      }
+      const point = pointsById.get(pointKey(id))
+      if (!point || !map) {
+        continue
+      }
+
+      const wrappedLongitude = point.lngLat[0] + Math.round((event.lngLat.lng - point.lngLat[0]) / 360) * 360
+      const markerPosition = map.project([wrappedLongitude, point.lngLat[1]])
+      const x = event.point.x - markerPosition.x
+      const y = event.point.y - markerPosition.y
+      const pointSize = point.size ?? size
+      const expanded = feature.layer.id === hoverLayerId
+      const pointBadges = point.badges ?? badges
+      const badge = getMarkerBadgeHitCircles(pointSize, pointBadges, expanded).find(circle => (
+        (x - circle.x) ** 2 + (y - circle.y) ** 2 <= circle.radius ** 2
+      ))
+      if (badge) {
+        return { point, badgeLabel: badge.label }
+      }
+
+      const markerRadius = markerVisualSizes[pointSize].diameter / 2
+      if (x * x + y * y <= markerRadius * markerRadius) {
+        return { point }
+      }
+    }
+    return null
   }
 
   function handleClick(event: MapLayerMouseEvent) {
-    const point = getPointFromEvent(event)
-    if (point) {
-      onclick?.(point, event)
+    const hit = getHitFromEvent(event)
+    if (hit) {
+      onclick?.(hit.point, event)
     }
   }
 
   function handleMouseEnter(event: MapLayerMouseEvent) {
+    const hit = getHitFromEvent(event)
+    if (!hit) {
+      if (map) {
+        map.getCanvas().style.cursor = ''
+      }
+      if (hoveredPoint) {
+        onmouseleave?.(hoveredPoint, event)
+        hoveredPoint = null
+        updateHoverSourceData()
+      }
+      tooltip = null
+      return
+    }
+    const nextPoint = hit.point
     if (map) {
       map.getCanvas().style.cursor = 'pointer'
     }
-    const nextPoint = getPointFromEvent(event)
-    if (showLabels && nextPoint?.label) {
+    const tooltipLabel = hit.badgeLabel || nextPoint.label
+    if (showLabels && tooltipLabel) {
       const pointSize = nextPoint.size ?? size
       const markerPosition = map?.project(nextPoint.lngLat)
       tooltip = {
         x: markerPosition?.x ?? event.point.x,
         y: (markerPosition?.y ?? event.point.y) - markerVisualSizes[pointSize].diameter / 2 - 8,
-        label: nextPoint.label,
+        label: tooltipLabel,
       }
     }
     else {
@@ -224,6 +322,7 @@
         onmouseleave?.(hoveredPoint, event)
       }
       hoveredPoint = nextPoint
+      updateHoverSourceData()
       onmouseenter?.(nextPoint, event)
     }
   }
@@ -235,6 +334,7 @@
     if (hoveredPoint) {
       onmouseleave?.(hoveredPoint, event)
       hoveredPoint = null
+      updateHoverSourceData()
     }
     tooltip = null
   }
@@ -243,9 +343,9 @@
     if (eventsAttached) {
       return
     }
-    currentMap.on('click', markerLayerId, handleClick)
-    currentMap.on('mousemove', markerLayerId, handleMouseEnter)
-    currentMap.on('mouseleave', markerLayerId, handleMouseLeave)
+    currentMap.on('click', interactionLayerIds, handleClick)
+    currentMap.on('mousemove', interactionLayerIds, handleMouseEnter)
+    currentMap.on('mouseleave', interactionLayerIds, handleMouseLeave)
     eventsAttached = true
   }
 
@@ -253,11 +353,12 @@
     if (!eventsAttached) {
       return
     }
-    currentMap.off('click', markerLayerId, handleClick)
-    currentMap.off('mousemove', markerLayerId, handleMouseEnter)
-    currentMap.off('mouseleave', markerLayerId, handleMouseLeave)
+    currentMap.off('click', interactionLayerIds, handleClick)
+    currentMap.off('mousemove', interactionLayerIds, handleMouseEnter)
+    currentMap.off('mouseleave', interactionLayerIds, handleMouseLeave)
     currentMap.getCanvas().style.cursor = ''
     hoveredPoint = null
+    updateHoverSourceData()
     tooltip = null
     eventsAttached = false
   }
@@ -271,6 +372,7 @@
       map.getCanvas().style.cursor = ''
       hoveredPoint = null
       tooltip = null
+      updateHoverSourceData()
     }
 
     const visibilityFilter: FilterSpecification | null = hiddenId === null
@@ -310,27 +412,39 @@
     visuals: Set<MarkerVisual>,
     expectedStyleGeneration: number,
   ) {
-    const results = await Promise.all(Array.from(visuals, async (visual) => {
-      if (currentMap.hasImage(visual.imageId)) {
-        registeredImageIds.add(visual.imageId)
+    const imageRequests = Array.from(visuals).flatMap(visual => [
+      { imageId: visual.imageId, visual, expandedBadges: false },
+      ...(visual.hoverImageId === visual.imageId
+        ? []
+        : [{ imageId: visual.hoverImageId, visual, expandedBadges: true }]),
+    ])
+    const results = await Promise.all(imageRequests.map(async ({ imageId, visual, expandedBadges }) => {
+      if (currentMap.hasImage(imageId)) {
+        registeredImageIds.add(imageId)
         return true
       }
-      let pendingImage = pendingMarkerImages.get(visual.imageId)
+      let pendingImage = pendingMarkerImages.get(imageId)
       if (!pendingImage) {
-        pendingImage = visual.icon
+        pendingImage = visual.icon || visual.badges.length > 0
           ? createCompositeMarkerImage({
             size: visual.size,
             color: visual.color,
             strokeColor: visual.strokeColor,
             icon: visual.icon,
             iconColor: visual.iconColor,
+            badges: visual.badges,
+            badgeStrokeColor: visual.badgeStrokeColor,
+            expandedBadges,
           }).catch((error) => {
-            console.warn('[shadcn-map] Unable to render a custom MarkerLayer icon. Using the default icon.', error)
+            console.warn('[shadcn-map] Unable to render a custom MarkerLayer visual. Using the default icon.', error)
             return createDefaultMarkerImage({
               size: visual.size,
               color: visual.color,
               strokeColor: visual.strokeColor,
               iconColor: visual.iconColor,
+              badges: visual.badges,
+              badgeStrokeColor: visual.badgeStrokeColor,
+              expandedBadges,
             })
           })
           : Promise.resolve(createDefaultMarkerImage({
@@ -339,7 +453,7 @@
             strokeColor: visual.strokeColor,
             iconColor: visual.iconColor,
           }))
-        pendingMarkerImages.set(visual.imageId, pendingImage)
+        pendingMarkerImages.set(imageId, pendingImage)
       }
 
       try {
@@ -351,10 +465,10 @@
         ) {
           return false
         }
-        if (!currentMap.hasImage(visual.imageId)) {
-          currentMap.addImage(visual.imageId, image.image, { pixelRatio: image.pixelRatio })
+        if (!currentMap.hasImage(imageId)) {
+          currentMap.addImage(imageId, image.image, { pixelRatio: image.pixelRatio })
         }
-        registeredImageIds.add(visual.imageId)
+        registeredImageIds.add(imageId)
         return true
       }
       catch (error) {
@@ -362,8 +476,8 @@
         return false
       }
       finally {
-        if (pendingMarkerImages.get(visual.imageId) === pendingImage) {
-          pendingMarkerImages.delete(visual.imageId)
+        if (pendingMarkerImages.get(imageId) === pendingImage) {
+          pendingMarkerImages.delete(imageId)
         }
       }
     }))
@@ -377,6 +491,7 @@
     appliedSize = size
     appliedIcon = icon
     appliedIconColor = iconColor
+    appliedBadges = badges
     appliedStrokeColor = getResolvedStrokeColor()
   }
 
@@ -386,6 +501,7 @@
       || appliedSize !== size
       || appliedIcon !== icon
       || appliedIconColor !== iconColor
+      || appliedBadges !== badges
       || appliedStrokeColor !== getResolvedStrokeColor()
   }
 
@@ -398,12 +514,19 @@
       return
     }
     const data = buildGeoJSON()
-    if (hoveredPoint && !pointsById.has(pointKey(hoveredPoint.id))) {
-      currentMap.getCanvas().style.cursor = ''
-      hoveredPoint = null
-      tooltip = null
+    if (hoveredPoint) {
+      const nextHoveredPoint = pointsById.get(pointKey(hoveredPoint.id))
+      if (nextHoveredPoint) {
+        hoveredPoint = nextHoveredPoint
+      }
+      else {
+        currentMap.getCanvas().style.cursor = ''
+        hoveredPoint = null
+        tooltip = null
+      }
     }
     source.setData(data)
+    updateHoverSourceData()
     markDataApplied()
   }
 
@@ -416,7 +539,11 @@
       if (currentMap.hasImage(visual.imageId)) {
         currentMap.removeImage(visual.imageId)
       }
+      if (visual.hoverImageId !== visual.imageId && currentMap.hasImage(visual.hoverImageId)) {
+        currentMap.removeImage(visual.hoverImageId)
+      }
       registeredImageIds.delete(visual.imageId)
+      registeredImageIds.delete(visual.hoverImageId)
       markerVisuals.delete(key)
     }
   }
@@ -487,6 +614,23 @@
         },
       })
     }
+
+    if (!currentMap.getLayer(hoverLayerId)) {
+      currentMap.addLayer({
+        id: hoverLayerId,
+        type: 'symbol',
+        source: hoverSourceId,
+        layout: {
+          'icon-image': ['get', 'markerHoverImage'],
+          'symbol-sort-key': ['get', 'markerOrder'],
+          'symbol-z-order': 'source',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'icon-pitch-alignment': 'viewport',
+          'icon-rotation-alignment': 'viewport',
+        },
+      })
+    }
   }
 
   async function ensureResources(
@@ -522,12 +666,19 @@
     else {
       updateSourceData(currentMap)
     }
+    if (!currentMap.getSource(hoverSourceId)) {
+      currentMap.addSource(hoverSourceId, {
+        type: 'geojson',
+        data: buildHoverGeoJSON(),
+      })
+    }
 
     if (
       map !== currentMap
       || expectedStyleGeneration !== styleGeneration
       || expectedDataGeneration !== dataGeneration
       || !currentMap.getSource(sourceId)
+      || !currentMap.getSource(hoverSourceId)
     ) {
       return
     }
@@ -550,13 +701,21 @@
 
   function resourcesAreMissing(currentMap: MapLibreMap) {
     return !currentMap.getSource(sourceId)
+      || !currentMap.getSource(hoverSourceId)
       || !currentMap.getLayer(shadowLayerId)
       || !currentMap.getLayer(activeLayerId)
       || !currentMap.getLayer(markerLayerId)
-      || points.some(point => !currentMap.hasImage(getMarkerVisual(point).imageId))
+      || !currentMap.getLayer(hoverLayerId)
+      || points.some((point) => {
+        const visual = getMarkerVisual(point)
+        return !currentMap.hasImage(visual.imageId) || !currentMap.hasImage(visual.hoverImageId)
+      })
   }
 
   function removeResources(currentMap: MapLibreMap) {
+    if (currentMap.getLayer(hoverLayerId)) {
+      currentMap.removeLayer(hoverLayerId)
+    }
     if (currentMap.getLayer(markerLayerId)) {
       currentMap.removeLayer(markerLayerId)
     }
@@ -565,6 +724,9 @@
     }
     if (currentMap.getLayer(shadowLayerId)) {
       currentMap.removeLayer(shadowLayerId)
+    }
+    if (currentMap.getSource(hoverSourceId)) {
+      currentMap.removeSource(hoverSourceId)
     }
     if (currentMap.getSource(sourceId)) {
       currentMap.removeSource(sourceId)
@@ -587,6 +749,7 @@
     const handleMoveStart = () => {
       currentMap.getCanvas().style.cursor = ''
       hoveredPoint = null
+      updateHoverSourceData()
       tooltip = null
     }
     const handleStyleLoad = () => {
@@ -657,6 +820,7 @@
     void size
     void icon
     void iconColor
+    void badges
     void ctx.resolvedMode
     void strokeColor
     dataGeneration += 1

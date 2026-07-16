@@ -1,5 +1,5 @@
 <script lang='ts' module>
-  import type { BadgePosition, MarkerBadge, MarkerColor, MarkerIconValue, MarkerSize } from '../types'
+  import type { MarkerBadge, MarkerColor, MarkerIconValue, MarkerSize } from '../types'
 
   export interface MarkerProps {
     /** Marker position [lng, lat] */
@@ -38,7 +38,7 @@
   import { onMount } from 'svelte'
   import { getMapContext } from '../context.svelte'
   import { themeColorTokens } from '../theme'
-  import { buildBadgeSvgMarkup } from './badge-visual'
+  import { buildBadgeSvgMarkup, resolveMarkerBadgeLayout } from './badge-visual'
 
   const {
     lngLat,
@@ -104,17 +104,6 @@
     'sidebar-accent-foreground': 'sidebar-accent',
   }
 
-  const numberIcons: Record<number, string> = {
-    2: 'i-ph:number-two-bold',
-    3: 'i-ph:number-three-bold',
-    4: 'i-ph:number-four-bold',
-    5: 'i-ph:number-five-bold',
-    6: 'i-ph:number-six-bold',
-    7: 'i-ph:number-seven-bold',
-    8: 'i-ph:number-eight-bold',
-    9: 'i-ph:number-nine-bold',
-  }
-
   const isThemeColor = $derived(themeColorTokens.includes(color as MarkerColor))
   const resolvedThemeColor = $derived(isThemeColor ? (color as MarkerColor) : 'primary')
   const markerColorVar = $derived(`var(--${resolvedThemeColor})`)
@@ -128,123 +117,9 @@
   )
   const sizeConfig = $derived(sizes[size])
 
-  // Group badges by position and compute display state
-  const badgesByPosition = $derived.by(() => {
-    const groups: Record<BadgePosition, MarkerBadge[]> = {
-      'top-right': [],
-      'top-left': [],
-      'bottom-right': [],
-      'bottom-left': [],
-    }
-
-    for (const badge of badges) {
-      const pos = badge.position ?? 'top-right'
-      groups[pos].push(badge)
-    }
-
-    return groups
-  })
-
-  const renderedBadges = $derived.by(() => {
-    const result: Array<{
-      position: BadgePosition
-      icon?: string
-      svgBody?: string
-      svgWidth?: number
-      svgHeight?: number
-      color: string
-      textColor: string
-      label: string
-      count: number
-    }> = []
-
-    for (const [position, positionBadges] of Object.entries(badgesByPosition) as [BadgePosition, MarkerBadge[]][]) {
-      if (positionBadges.length === 0)
-        continue
-
-      const firstBadge = positionBadges[0]
-      const count = positionBadges.length
-
-      if (count === 1 && firstBadge) {
-        // Single badge: show its icon
-        result.push({
-          position,
-          icon: firstBadge.icon,
-          svgBody: firstBadge.svgBody,
-          svgWidth: firstBadge.svgWidth,
-          svgHeight: firstBadge.svgHeight,
-          color: firstBadge.color ?? 'bg-zinc-700',
-          textColor: firstBadge.textColor ?? 'text-white',
-          label: firstBadge.label ?? '',
-          count: 1,
-        })
-      }
-      else {
-        // Multiple badges: show count icon (max 9)
-        const displayCount = Math.min(count, 9)
-        const countIcon = numberIcons[displayCount] ?? 'i-ph:number-nine-bold'
-        const allLabels = positionBadges
-          .map(b => b.label)
-          .filter(Boolean)
-          .join(', ')
-
-        result.push({
-          position,
-          icon: countIcon,
-          color: firstBadge?.color ?? 'bg-zinc-700',
-          textColor: firstBadge?.textColor ?? 'text-white',
-          label: count > 9 ? `${allLabels} (+${count - 9} more)` : allLabels,
-          count,
-        })
-      }
-    }
-
-    return result
-  })
-
-  const expandedBadges = $derived.by(() => {
-    const result: Array<{
-      key: string
-      position: BadgePosition
-      icon?: string
-      svgBody?: string
-      svgWidth?: number
-      svgHeight?: number
-      color: string
-      textColor: string
-      label: string
-      index: number
-      total: number
-    }> = []
-
-    for (const [position, positionBadges] of Object.entries(badgesByPosition) as [BadgePosition, MarkerBadge[]][]) {
-      if (positionBadges.length <= 1)
-        continue
-
-      const allLabels = positionBadges
-        .map(b => b.label)
-        .filter(Boolean)
-        .join(', ')
-
-      for (const [index, badge] of positionBadges.entries()) {
-        result.push({
-          key: `${position}-${index}`,
-          position: position as BadgePosition,
-          icon: badge.icon,
-          svgBody: badge.svgBody,
-          svgWidth: badge.svgWidth,
-          svgHeight: badge.svgHeight,
-          color: badge.color ?? 'bg-zinc-700',
-          textColor: badge.textColor ?? 'text-white',
-          label: index === 0 ? allLabels : (badge.label ?? ''),
-          index,
-          total: positionBadges.length,
-        })
-      }
-    }
-
-    return result
-  })
+  const badgeLayout = $derived.by(() => resolveMarkerBadgeLayout(badges))
+  const renderedBadges = $derived(badgeLayout.collapsed)
+  const expandedBadges = $derived(badgeLayout.expanded)
 
   // Read clusteredVersion to force re-evaluation when clustered state changes
   const isClustered = $derived.by(() => {
@@ -381,7 +256,7 @@
     </div>
   {/each}
 
-  {#each expandedBadges as badge (badge.key)}
+  {#each expandedBadges as badge (`${badge.position}-${badge.index}`)}
     <div
       class='marker-badge marker-badge-expanded {badge.color} {badge.textColor}'
       data-position={badge.position}

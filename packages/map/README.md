@@ -87,7 +87,12 @@ Use `<MarkerLayer>` for hundreds or thousands of non-clustered markers. It rende
 
 <Map tiles="/region.pmtiles">
   <MarkerLayer
-    points={locations}
+    points={locations.map(location => ({
+      ...location,
+      badges: [
+        { icon: 'i-ph:wifi-high-bold', color: 'bg-red-600', label: 'Wi-Fi' },
+      ],
+    }))}
     color="#2563eb"
     icon="i-ph:coffee-fill"
     iconColor="#ffffff"
@@ -111,9 +116,9 @@ Icons can be an Iconify/UnoCSS class or trusted inline SVG body:
 />
 ```
 
-The same inline SVG icon object can be passed to `<Marker>`, allowing a selected DOM marker to reuse the exact visual from `<MarkerLayer>`. Layer images are resolved before their source and layers are added, so a marker does not swap from a temporary default to its custom icon.
+The same inline SVG icon object can be passed to `<Marker>`, allowing DOM and GPU markers to reuse exact visuals. `<MarkerLayer>` also accepts the same `MarkerBadge[]` values as `<Marker>` at the layer or point level. Badges at the same position collapse into a count and expand into their individual GPU-rendered badges on hover; badge labels use the layer's shared hover tooltip. Layer images are resolved before their source and layers are added, so a marker does not swap from a temporary default to its custom icon.
 
-Marker IDs must be stable and unique. Replace the `points` array to update the source. Dynamically generated Iconify class names must be included in your UnoCSS safelist so their CSS is available at runtime. Custom layer icons are rasterized through a Blob URL, so strict Content Security Policies should allow `blob:` in `img-src`; otherwise the layer uses its default icon. `<MarkerLayer>` supports concrete CSS colors, per-point icons and sizes, active rings, hover labels, and pointer events. Use the DOM-based `<Marker>` when you need badges, dragging, keyboard focus, or arbitrary HTML.
+Marker IDs must be stable and unique. Replace the `points` array to update the source. Dynamically generated Iconify class names must be included in your UnoCSS safelist so their CSS is available at runtime. Custom layer icons and badges are rasterized through a Blob URL, so strict Content Security Policies should allow `blob:` in `img-src`; otherwise the layer uses its default icon. `<MarkerLayer>` supports concrete CSS colors, per-point icons, badges and sizes, active rings, hover labels, and pointer events. Use the DOM-based `<Marker>` when you need dragging, keyboard focus, or arbitrary HTML.
 
 ## Components
 
