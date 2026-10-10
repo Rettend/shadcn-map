@@ -1,25 +1,42 @@
 # shadcn-map
 
-A minimal and fast map library for Svelte 5 with [shadcn](https://shadcn-svelte.com/) design.
+A minimal and fast map library for Svelte 5 and Solid 2 with [shadcn](https://ui.shadcn.com/) design.
 Uses [MapLibre GL](https://maplibre.org/) and [Protomaps](https://protomaps.com/) for vector tiles.
 
 Recommended to use with [UnoCSS](https://unocss.dev/), and [unocss-preset-shadcn](https://github.com/Rettend/unocss-preset-shadcn/).
 
-## install
+## Install
+
+### Svelte 5
 
 ```cmd
-bun i shadcn-map
+bun add shadcn-map svelte@^5.0.0 maplibre-gl@^6.13.0
 ```
 
-Peer dependencies:
+For `style="auto"`, configure your theme provider (for example `mode-watcher`) to toggle the document's `.dark` class.
+
+### Solid 2
 
 ```bash
-bun i svelte@^5.0.0 bits-ui mode-watcher
+bun add shadcn-map solid-js@2.0.0-rc.14 @solidjs/web@2.0.0-rc.14 maplibre-gl@^6.13.0
 ```
+
+### MapLibre worker
+
+MapLibre 6 requires WebGL2 and a worker URL. For Vite applications, run this once in your browser entry before rendering a map:
+
+```ts
+import { setWorkerUrl } from 'maplibre-gl'
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+
+setWorkerUrl(workerUrl)
+```
+
+In SvelteKit, put the setup in your root layout and guard the call with `browser` from `$app/env`. For other bundlers, follow [MapLibre's installation guide](https://maplibre.org/maplibre-gl-js/docs/).
 
 ## Usage
 
-### Basic Map
+### Svelte 5
 
 ```svelte
 <script lang="ts">
@@ -43,6 +60,56 @@ bun i svelte@^5.0.0 bits-ui mode-watcher
   </Map>
 </div>
 ```
+
+### Solid 2
+
+The Solid entry targets Solid 2.0.0-rc.14. Import its stylesheet once in your application:
+
+```tsx
+import { Map, Marker, NavigationControl } from 'shadcn-map/solid'
+import 'shadcn-map/solid.css'
+
+export default function MapPage() {
+  return (
+    <div class="h-600px w-full overflow-hidden rounded-lg border">
+      <Map
+        center={[-74.006, 40.7128]}
+        zoom={12}
+        tiles="https://r2-public.protomaps.com/protomaps-sample-datasets/protomaps-basemap-opensource-20230408.pmtiles"
+      >
+        <NavigationControl position="top-right" />
+        <Marker lngLat={[-74.006, 40.7128]} label="New York" color="primary" />
+      </Map>
+    </div>
+  )
+}
+```
+
+Solid applications should use `jsxImportSource: "@solidjs/web"`. Configure the Solid Vite plugin so it transforms the package's preserved JSX and resolves the `solid` export condition:
+
+```ts
+import solid from '@solidjs/vite-plugin'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  resolve: {
+    dedupe: ['solid-js', '@solidjs/web'],
+  },
+  plugins: [solid({ extensions: ['.jsx', '.tsx'] })],
+})
+```
+
+The map renders an SSR-safe container and initializes MapLibre in the browser. Pass signal values directly to props, such as `points={points()}`. Layer data also supports nested updates from Solid stores.
+
+## Solid Playground
+
+The repository includes a responsive Solid example with filtering, GPU markers, DOM markers, badges, popups, controls, geolocation, details, and live theme switching:
+
+```bash
+bun run dev:solid
+```
+
+See [`packages/playground-solid`](https://github.com/Rettend/shadcn-map/tree/main/packages/playground-solid).
 
 ### Marker badges
 
@@ -146,6 +213,30 @@ Labels:
 
 - **Minimal**: City names, roads, water.
 - **Roads**: Show road names too.
+
+## Development
+
+Install workspace dependencies with `bun install`. The library source is organized by framework:
+
+```text
+packages/map/src/
+  svelte/  Svelte components and context
+  solid/   Solid components and context
+  shared/  Styles, types, and marker rendering helpers
+```
+
+Both playgrounds use Vite+. The library uses Svelte's packager and `vp pack` (tsdown) to publish its two adapters.
+
+- `bun run package` builds the library.
+- `bun run watch` rebuilds both library adapters when their source changes.
+- `bun run dev`, `bun run build`, and `bun run preview` run both playgrounds.
+- Add `:svelte` or `:solid` to `dev`, `build`, or `preview` to run one playground, such as `bun run dev:svelte`.
+- `bun run check` runs static checks for the toolchain, library, and both playgrounds.
+- `bun run test` runs the Bun regression tests.
+- `bun run lint` runs Oxlint and the Svelte-specific ESLint rules.
+- `bun run fmt` formats with Oxfmt; `bun run fmt:check` checks formatting.
+
+Solid checks use TypeScript 7. Svelte checking and declaration generation use TypeScript 6's compiler API.
 
 ## License
 
