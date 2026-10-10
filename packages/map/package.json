@@ -58,8 +58,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json && bun run check:solid",
     "check:solid": "node ../../node_modules/@typescript/native/bin/tsc --noEmit -p tsconfig.solid.json",
     "test": "bun test src/shared && bun run test:solid",
-    "test:solid": "bun --conditions=browser --conditions=development test src/solid",
-    "release": "bumpp && bun run build && bun publish"
+    "test:solid": "bun --conditions=browser --conditions=development test src/solid"
   },
   "dependencies": {
     "maplibre-gl": "^6.13.0",

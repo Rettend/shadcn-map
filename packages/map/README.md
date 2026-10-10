@@ -238,6 +238,24 @@ Both playgrounds use Vite+. The library uses Svelte's packager and `vp pack` (ts
 
 Solid checks use TypeScript 7. Svelte checking and declaration generation use TypeScript 6's compiler API.
 
+### Release to npm
+
+Land the intended changes on `origin/main` and configure your npm publishing credentials. From the repository root, run:
+
+```bash
+bun run release
+```
+
+The GitButler-aware `gb-release` CLI checks the release branch and lets you choose a version. The wrapper checks npm authentication before any release changes. Preparation updates the library version in `bun.lock`, runs checks and tests, builds both playgrounds, and dry-runs the npm package. The CLI then commits the version files, tags and pushes the release, and publishes `shadcn-map` to npm. It restores the GitButler workspace afterward.
+
+If publishing fails after the release commit and tag were pushed, retry without another version bump:
+
+```bash
+bun run release --publish-only
+```
+
+The retry requires the checked-out branch, remote tip, and release tag to identify the same release commit. Only the library is published, not the playgrounds.
+
 ## License
 
 MIT

@@ -27,14 +27,14 @@
     "check:solid": "bun run package && cd packages/playground-solid && bun run check",
     "test": "cd packages/map && bun run test",
     "update": "taze latest -wr",
-    "release": "cd packages/map && bun run release"
+    "release": "bun release.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@rttnd/release": "^0.1.1",
     "@types/bun": "^1.4.2",
     "@typescript/native": "npm:typescript@7.0.2",
     "@unocss/eslint-plugin": "^66.10.5",
-    "bumpp": "^12.3.0",
     "eslint": "^10.12.0",
     "eslint-plugin-solid": "~0.18.1",
     "eslint-plugin-svelte": "^3.23.1",
