@@ -4,7 +4,7 @@ import * as maplibre from 'maplibre-gl'
 import { createRoot, createSignal, flush, Show } from 'solid-js'
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { Marker } from '../../src/solid/components/Marker'
-import { Popup } from '../../src/solid/components/Popup'
+import { Popup, type PopupProps } from '../../src/solid/components/Popup'
 import { createMapContext, MapContextProvider } from '../../src/solid/context'
 
 vi.mock('maplibre-gl', async importOriginal => ({
@@ -62,7 +62,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function mount() {
+function mount(options: Partial<PopupProps> = {}) {
   const fixture = createRoot(disposeRoot => {
     const context = createMapContext()
     const [selected, setSelected] = createSignal('Castle')
@@ -92,6 +92,7 @@ function mount() {
           lngLat={fixture.selected() === 'Castle' ? [19, 47] : [20, 48]}
           open={fixture.open()}
           onclose={() => fixture.setOpen(false)}
+          {...options}
         >
           <strong>{fixture.selected()}</strong>
           <button type="button">Details</button>
@@ -133,4 +134,30 @@ test('keeps reactive popup content attached when a sibling hover tooltip is remo
   flush()
   expect(container.querySelector('.maplibregl-popup')).toBeNull()
   expect(fixture.context.activePopupMarkerId).toBeNull()
+})
+
+test('supports a custom popup without taking focus on open or reopen', () => {
+  const trigger = document.createElement('button')
+  container.append(trigger)
+  trigger.focus()
+  const maxWidth = 'min(280px, calc(100vw - 32px))'
+  const fixture = mount({
+    focusAfterOpen: false,
+    closeButton: false,
+    popupClass: 'locator-selection-popup',
+    maxWidth,
+    class: 'selection-content',
+  })
+  const popup = container.querySelector<HTMLElement>('.maplibregl-popup')!
+  expect(document.activeElement).toBe(trigger)
+  expect(popup.matches('.shadcn-map-popup.locator-selection-popup')).toBe(true)
+  expect(popup.querySelector('.maplibregl-popup-close-button')).toBeNull()
+  expect(popup.style.maxWidth).toBe(maxWidth)
+  expect(popup.querySelector('.shadcn-popup-content.selection-content')).not.toBeNull()
+  expect(popup.classList.contains('selection-content')).toBe(false)
+  fixture.setOpen(false)
+  flush()
+  fixture.setOpen(true)
+  flush()
+  expect(document.activeElement).toBe(trigger)
 })

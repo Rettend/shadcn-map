@@ -13,7 +13,15 @@ export interface PopupProps {
   onclose?: () => void
   /** Close the popup when the map is clicked */
   closeOnClick?: boolean
-  /** Additional CSS classes */
+  /** Show the native close button when created. Defaults to true. */
+  closeButton?: boolean
+  /** Focus popup content when opened. Set at creation; defaults to true. */
+  focusAfterOpen?: boolean
+  /** Initial maximum popup width. Defaults to MapLibre's 240px. */
+  maxWidth?: string
+  /** Initial additional classes on the outer MapLibre popup container. */
+  popupClass?: string
+  /** Additional CSS classes on the popup content */
   class?: string
   /** Offset from anchor point (number = uniform, array = [x, y], or 'auto' for auto-detected) */
   offset?: number | [number, number] | 'auto'
@@ -145,11 +153,13 @@ export function Popup(props: PopupProps): JSX.Element {
 
     // Effects update this mount-owned instance; cleanup disposes that same instance.
     const initialPopup = new MapLibrePopup({
-      closeButton: true,
+      closeButton: props.closeButton ?? true,
       closeOnClick: props.closeOnClick ?? true,
+      focusAfterOpen: props.focusAfterOpen ?? true,
+      maxWidth: props.maxWidth ?? '240px',
       offset: getOffset(getMarkerAtLocation(location())?.size),
       anchor: 'bottom',
-      className: 'shadcn-map-popup',
+      className: ['shadcn-map-popup', props.popupClass].filter(Boolean).join(' '),
     })
     popup = initialPopup
     initialPopup.setDOMContent(contentElement)
