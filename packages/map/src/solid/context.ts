@@ -1,11 +1,22 @@
 import type { Map as MapLibreMap } from 'maplibre-gl'
-import { createContext, createSignal, useContext } from 'solid-js'
+import { createContext, createMemo, createSignal, useContext } from 'solid-js'
 
 export interface MarkerRegistration {
   id: string
   lngLat: [number, number]
   clusterable: boolean
   size?: 'sm' | 'md' | 'lg'
+}
+
+interface MarkerSource {
+  registration: MarkerRegistration | (() => MarkerRegistration)
+  overrides?: Partial<MarkerRegistration>
+}
+
+function resolveMarker(source: MarkerSource): MarkerRegistration {
+  const registration =
+    typeof source.registration === 'function' ? source.registration() : source.registration
+  return source.overrides ? { ...registration, ...source.overrides } : registration
 }
 
 export interface FlyToOptions {
@@ -30,7 +41,7 @@ export interface MapContextStore {
   readonly resolvedMode: 'dark' | 'light'
   setMap: (map: MapLibreMap | null) => void
   setLoaded: (loaded: boolean) => void
-  registerMarker: (registration: MarkerRegistration) => void
+  registerMarker: (registration: MarkerRegistration | (() => MarkerRegistration)) => void
   updateMarker: (id: string, updates: Partial<MarkerRegistration>) => void
   unregisterMarker: (id: string) => void
   setClusteredMarkers: (ids: Set<string>) => void
@@ -53,7 +64,10 @@ export function createMapContext(mode: () => 'dark' | 'light' = () => 'dark'): M
   let currentMap: MapLibreMap | null = null
   const [map, setMapSignal] = createSignal<MapLibreMap | null>(null)
   const [loaded, setLoaded] = createSignal(false)
-  const [markers, setMarkers] = createSignal(new Map<string, MarkerRegistration>())
+  const [markerSources, setMarkerSources] = createSignal(new Map<string, MarkerSource>())
+  const markers = createMemo(
+    () => new Map(Array.from(markerSources(), ([id, source]) => [id, resolveMarker(source)])),
+  )
   const [clusteredMarkerIds, setClusteredMarkerIds] = createSignal(new Set<string>())
   const [clusteredVersion, setClusteredVersion] = createSignal(0)
   const [activePopupMarkerId, setActivePopupMarkerId] = createSignal<string | null>(null)
@@ -98,19 +112,21 @@ export function createMapContext(mode: () => 'dark' | 'light' = () => 'dark'): M
       setResolvedMode(nextMode)
     },
     registerMarker: registration => {
-      setMarkers(current => {
+      const id = typeof registration === 'function' ? registration().id : registration.id
+      setMarkerSources(current => {
         const next = new Map(current)
-        next.set(registration.id, registration)
+        next.set(id, { registration })
         return next
       })
     },
     updateMarker: (id, updates) => {
-      setMarkers(current => {
-        const existing = current.get(id)
-        if (!existing) {
+      setMarkerSources(current => {
+        const source = current.get(id)
+        if (!source) {
           return current
         }
 
+        const existing = resolveMarker(source)
         const nextEntry = { ...existing, ...updates }
         const lngLatChanged =
           existing.lngLat[0] !== nextEntry.lngLat[0] || existing.lngLat[1] !== nextEntry.lngLat[1]
@@ -121,12 +137,15 @@ export function createMapContext(mode: () => 'dark' | 'light' = () => 'dark'): M
         }
 
         const next = new Map(current)
-        next.set(id, nextEntry)
+        next.set(id, {
+          registration: source.registration,
+          overrides: { ...source.overrides, ...updates },
+        })
         return next
       })
     },
     unregisterMarker: id => {
-      setMarkers(current => {
+      setMarkerSources(current => {
         const next = new Map(current)
         next.delete(id)
         return next

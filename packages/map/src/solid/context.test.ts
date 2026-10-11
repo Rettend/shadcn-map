@@ -69,6 +69,80 @@ describe('Solid map context', () => {
     }
   })
 
+  test('derives live marker registrations in the same update as their input', () => {
+    const observations: unknown[] = []
+    const { context, source, setLongitude, dispose } = createRoot(dispose => {
+      const context = createMapContext()
+      const [longitude, setLongitude] = createSignal(1)
+      const source = () => ({
+        id: 'a',
+        lngLat: [longitude(), 2] as [number, number],
+        clusterable: true,
+      })
+      createEffect(
+        () => [longitude(), context.markers.get('a')?.lngLat],
+        value => {
+          observations.push(value)
+        },
+      )
+      return { context, source, setLongitude, dispose }
+    })
+    try {
+      context.registerMarker(source)
+      flush()
+      observations.length = 0
+      setLongitude(3)
+      flush()
+      expect(observations).toEqual([[3, [3, 2]]])
+      context.updateMarker('a', { size: 'lg' })
+      flush()
+      setLongitude(4)
+      flush()
+      expect(context.markers.get('a')).toMatchObject({ lngLat: [4, 2], size: 'lg' })
+      context.unregisterMarker('a')
+      flush()
+      expect(context.markers.size).toBe(0)
+    } finally {
+      dispose()
+    }
+  })
+
+  test('supports repeated overrides while keeping unmodified marker fields reactive', () => {
+    const { context, source, setLongitude, dispose } = createRoot(dispose => {
+      const context = createMapContext()
+      const [longitude, setLongitude] = createSignal(1)
+      const source = () => ({
+        id: 'a',
+        lngLat: [longitude(), 2] as [number, number],
+        clusterable: true,
+      })
+      return { context, source, setLongitude, dispose }
+    })
+    try {
+      context.registerMarker(source)
+      flush()
+      context.updateMarker('a', { clusterable: false })
+      for (let i = 0; i < 20_000; i++) {
+        context.updateMarker('a', { size: i % 2 === 0 ? 'sm' : 'lg' })
+        flush()
+      }
+      setLongitude(3)
+      flush()
+      expect(context.markers.get('a')).toEqual({
+        id: 'a',
+        lngLat: [3, 2],
+        clusterable: false,
+        size: 'lg',
+      })
+
+      context.registerMarker(source)
+      flush()
+      expect(context.markers.get('a')).toEqual({ id: 'a', lngLat: [3, 2], clusterable: true })
+    } finally {
+      dispose()
+    }
+  })
+
   test('restores the previous active popup when the newest closes', () => {
     const { context, dispose } = createRoot(dispose => ({ context: createMapContext(), dispose }))
     try {

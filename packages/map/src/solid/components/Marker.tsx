@@ -1,7 +1,7 @@
 import type { JSX } from '@solidjs/web'
 import type { MarkerBadge, MarkerColor, MarkerIconValue, MarkerSize } from '../../shared/types'
 import { Marker as MapLibreMarker } from 'maplibre-gl'
-import { createEffect, createMemo, For, onSettled } from 'solid-js'
+import { createEffect, createMemo, createSignal, For, onSettled } from 'solid-js'
 import { buildBadgeSvgMarkup, resolveMarkerBadgeLayout } from '../../shared/badge-visual'
 import { themeColorTokens } from '../../shared/theme'
 import { getMapContext } from '../context'
@@ -119,8 +119,13 @@ export function Marker(props: MarkerProps): JSX.Element {
   const anyPopupOpen = createMemo(() => ctx.activePopupMarkerId !== null)
   const hasActivePopup = createMemo(() => ctx.activePopupMarkerId === markerId)
   const isActive = createMemo(() => hasActivePopup() || (props.active ?? false))
+  const [position, setPosition] = createSignal((): [number, number] => [
+    props.lngLat[0],
+    props.lngLat[1],
+  ])
   const registration = createMemo(() => ({
-    lngLat: [props.lngLat[0], props.lngLat[1]] as [number, number],
+    id: markerId,
+    lngLat: position(),
     clusterable: props.clusterable ?? true,
     size: props.size ?? 'md',
   }))
@@ -148,10 +153,7 @@ export function Marker(props: MarkerProps): JSX.Element {
     }
     element.addEventListener('click', handleElementClick)
 
-    ctx.registerMarker({
-      id: markerId,
-      ...initialRegistration,
-    })
+    ctx.registerMarker(registration)
 
     const mountedMarker = new MapLibreMarker({
       element,
@@ -165,7 +167,7 @@ export function Marker(props: MarkerProps): JSX.Element {
     const handleDragEnd = () => {
       const position = mountedMarker.getLngLat()
       props.ondragend?.([position.lng, position.lat])
-      ctx.updateMarker(markerId, { lngLat: [position.lng, position.lat] })
+      setPosition([position.lng, position.lat])
     }
     mountedMarker.on('dragend', handleDragEnd)
 
@@ -178,17 +180,9 @@ export function Marker(props: MarkerProps): JSX.Element {
     }
   })
 
-  createEffect(
-    () => registration(),
-    value => ctx.updateMarker(markerId, value),
-  )
-
-  createEffect(
-    () => [props.lngLat[0], props.lngLat[1]] as [number, number],
-    lngLat => {
-      marker?.setLngLat(lngLat)
-    },
-  )
+  createEffect(position, lngLat => {
+    marker?.setLngLat(lngLat)
+  })
 
   createEffect(
     () => props.draggable ?? false,

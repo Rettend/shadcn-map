@@ -58,7 +58,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json && bun run check:solid",
     "check:solid": "node ../../node_modules/@typescript/native/bin/tsc --noEmit -p tsconfig.solid.json",
     "test": "bun test src/shared && bun run test:solid",
-    "test:solid": "bun --conditions=browser --conditions=development test src/solid"
+    "test:solid": "bun --conditions=browser --conditions=development test src/solid && bun run test:solid:dom",
+    "test:solid:dom": "vp test run --config vitest.config.ts"
   },
   "dependencies": {
     "maplibre-gl": "^6.13.0",
@@ -66,10 +67,12 @@
     "supercluster": "^9.1.0"
   },
   "devDependencies": {
+    "@solidjs/vite-plugin": "3.0.0-next.49",
     "@solidjs/web": "2.0.0-rc.14",
     "@sveltejs/package": "^3.0.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/geojson": "^7946.0.16",
+    "happy-dom": "20.14.6",
     "solid-js": "2.0.0-rc.14",
     "svelte": "^5.57.2",
     "svelte-check": "^4.7.6",

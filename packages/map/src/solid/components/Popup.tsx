@@ -1,4 +1,5 @@
 import type { JSX } from '@solidjs/web'
+import { isServer, Portal } from '@solidjs/web'
 import { Popup as MapLibrePopup } from 'maplibre-gl'
 import { createEffect, createMemo, onSettled } from 'solid-js'
 import { getMapContext } from '../context'
@@ -12,6 +13,14 @@ export interface PopupProps {
   onclose?: () => void
   /** Close the popup when the map is clicked */
   closeOnClick?: boolean
+  /** Show MapLibre's close button. Defaults to true. */
+  closeButton?: boolean
+  /** Focus the first focusable child when opened. Defaults to true. */
+  focusAfterOpen?: boolean
+  /** Maximum popup width. Defaults to MapLibre's 240px. */
+  maxWidth?: string
+  /** Additional classes on the native popup container. */
+  popupClass?: string
   /** Additional CSS classes */
   class?: string
   /** Offset from anchor point (number = uniform, array = [x, y], or 'auto' for auto-detected) */
@@ -29,7 +38,8 @@ const sizeOffsets: Record<'sm' | 'md' | 'lg', [number, number]> = {
 export function Popup(props: PopupProps): JSX.Element {
   const ctx = getMapContext()
   let popup: MapLibrePopup | null = null
-  let contentElement: HTMLDivElement | undefined
+  // MapLibre owns the host; Solid only reconciles the portal's children.
+  const contentElement = isServer ? undefined : document.createElement('div')
   let programmaticClose = false
   let syncScheduled = false
   let appliedLocation: [number, number] | undefined
@@ -80,10 +90,11 @@ export function Popup(props: PopupProps): JSX.Element {
       return
     }
     programmaticClose = true
-    popup.remove()
-    queueMicrotask(() => {
+    try {
+      popup.remove()
+    } finally {
       programmaticClose = false
-    })
+    }
   }
 
   function scheduleSync() {
@@ -91,8 +102,7 @@ export function Popup(props: PopupProps): JSX.Element {
       return
     }
     syncScheduled = true
-    // Marker registration is relayed through effects. Match only after those
-    // writes settle, not against a new location with the old registry.
+    // Match after sibling markers have registered during mounting.
     onSettled(() => {
       syncScheduled = false
       const map = ctx.map
@@ -143,11 +153,13 @@ export function Popup(props: PopupProps): JSX.Element {
 
     // Effects update this mount-owned instance; cleanup disposes that same instance.
     const initialPopup = new MapLibrePopup({
-      closeButton: true,
+      closeButton: props.closeButton ?? true,
       closeOnClick: props.closeOnClick ?? true,
+      focusAfterOpen: props.focusAfterOpen ?? true,
+      maxWidth: props.maxWidth ?? '240px',
       offset: getOffset(getMarkerAtLocation(location())?.size),
       anchor: 'bottom',
-      className: 'shadcn-map-popup',
+      className: ['shadcn-map-popup', props.popupClass].filter(Boolean).join(' '),
     })
     popup = initialPopup
     initialPopup.setDOMContent(contentElement)
@@ -170,16 +182,16 @@ export function Popup(props: PopupProps): JSX.Element {
     const offset = props.offset ?? 'auto'
     return {
       map: ctx.map,
+      markers: ctx.markers,
       open: props.open ?? true,
       lngLat: location(),
       offset: Array.isArray(offset) ? [offset[0], offset[1]] : offset,
     }
   }, scheduleSync)
-  createEffect(() => ctx.markers, scheduleSync)
 
   return (
-    <div ref={element => (contentElement = element)} class={['shadcn-popup-content', props.class]}>
-      {props.children}
-    </div>
+    <Portal mount={contentElement}>
+      <div class={['shadcn-popup-content', props.class]}>{props.children}</div>
+    </Portal>
   )
 }

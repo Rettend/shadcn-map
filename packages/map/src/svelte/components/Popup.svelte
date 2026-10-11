@@ -10,6 +10,14 @@
     onclose?: () => void
     /** Close the popup when the map is clicked */
     closeOnClick?: boolean
+    /** Show MapLibre's close button. Defaults to true. */
+    closeButton?: boolean
+    /** Focus the first focusable child when opened. Defaults to true. */
+    focusAfterOpen?: boolean
+    /** Maximum popup width. Defaults to MapLibre's 240px. */
+    maxWidth?: string
+    /** Additional classes on the native popup container. */
+    popupClass?: string
     /** Additional CSS classes */
     class?: string
     /** Offset from anchor point (number = uniform, array = [x, y], or 'auto' for auto-detected) */
@@ -29,6 +37,10 @@
     open = true,
     onclose,
     closeOnClick = true,
+    closeButton = true,
+    focusAfterOpen = true,
+    maxWidth = '240px',
+    popupClass = '',
     class: className = '',
     offset = 'auto',
     children,
@@ -79,10 +91,11 @@
       return
     }
     programmaticClose = true
-    popup.remove()
-    queueMicrotask(() => {
+    try {
+      popup.remove()
+    } finally {
       programmaticClose = false
-    })
+    }
   }
 
   onMount(() => {
@@ -92,11 +105,13 @@
     }
 
     popup = new MapLibrePopup({
-      closeButton: true,
+      closeButton,
       closeOnClick,
+      focusAfterOpen,
+      maxWidth,
       offset: computedOffset,
       anchor: 'bottom',
-      className: 'shadcn-map-popup',
+      className: `shadcn-map-popup ${popupClass}`.trim(),
     })
 
     popup.setDOMContent(contentElement)

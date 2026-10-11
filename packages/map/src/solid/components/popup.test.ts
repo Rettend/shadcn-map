@@ -52,9 +52,17 @@ let disposers: Array<() => void>
 let popupConstructor: ReturnType<typeof spyOn<typeof maplibre, 'Popup'>>
 let markerConstructor: ReturnType<typeof spyOn<typeof maplibre, 'Marker'>>
 let popup: NativePopup
+let documentDescriptor: PropertyDescriptor | undefined
+let dragEnd: (() => void) | undefined
 
 beforeEach(() => {
+  documentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document')
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: { createElement: () => new EventTarget() },
+  })
   disposers = []
+  dragEnd = undefined
   popupConstructor = spyOn(maplibre, 'Popup').mockImplementation(function (options: PopupOptions) {
     popup = new NativePopup(options)
     return popup
@@ -68,7 +76,12 @@ beforeEach(() => {
       addTo() {
         return this
       },
-      on() {},
+      getLngLat() {
+        return { lng: 21, lat: 49 }
+      },
+      on(_type: string, listener: () => void) {
+        dragEnd = listener
+      },
       off() {},
       remove() {},
     }
@@ -81,6 +94,11 @@ afterEach(() => {
   }
   popupConstructor.mockRestore()
   markerConstructor.mockRestore()
+  if (documentDescriptor) {
+    Object.defineProperty(globalThis, 'document', documentDescriptor)
+  } else {
+    Reflect.deleteProperty(globalThis, 'document')
+  }
 })
 
 function createSelectionFixture() {
@@ -175,5 +193,27 @@ describe('Solid popup selection lifecycle', () => {
     expect(fixture.onclose).toHaveBeenCalledTimes(1)
     expect(untrack(() => fixture.context.activePopupMarkerId)).toBeNull()
     expect(popup.isOpen()).toBe(false)
+  })
+
+  test('does not suppress a native close immediately after a controlled close and reopen', () => {
+    const fixture = createSelectionFixture()
+    fixture.setOpen(false)
+    flush()
+    fixture.setOpen(true)
+    flush()
+    popup.remove()
+    flush()
+    expect(fixture.onclose).toHaveBeenCalledTimes(1)
+    expect(fixture.context.activePopupMarkerId).toBeNull()
+  })
+
+  test('keeps drag coordinates registered until the controlled location changes', () => {
+    const fixture = createSelectionFixture()
+    dragEnd!()
+    flush()
+    expect([...fixture.context.markers.values()][0]?.lngLat).toEqual([21, 49])
+    fixture.setSelected('museum')
+    flush()
+    expect([...fixture.context.markers.values()][0]?.lngLat).toEqual([19.0779, 47.5158])
   })
 })
