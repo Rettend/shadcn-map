@@ -1,6 +1,6 @@
 {
   "name": "shadcn-map",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "A minimal, fast map library for Svelte 5 and Solid built on MapLibre GL with shadcn aesthetics.",
   "keywords": [
     "map",
