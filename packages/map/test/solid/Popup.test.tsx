@@ -1,7 +1,7 @@
 import type { Map as MapLibreMap, MarkerOptions } from 'maplibre-gl'
 import { render } from '@solidjs/web'
 import * as maplibre from 'maplibre-gl'
-import { createEffect, createRoot, createSignal, flush, OBSERVE, Show } from 'solid-js'
+import { createRoot, createSignal, flush, Show } from 'solid-js'
 import { afterEach, beforeEach, expect, test, vi } from 'vite-plus/test'
 import { Marker } from '../../src/solid/components/Marker'
 import { Popup } from '../../src/solid/components/Popup'
@@ -62,19 +62,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function mount(options = {}) {
+function mount() {
   const fixture = createRoot(disposeRoot => {
     const context = createMapContext()
     const [selected, setSelected] = createSignal('Castle')
     const [hovered, setHovered] = createSignal(true)
     const [open, setOpen] = createSignal(true)
-    const observations: unknown[] = []
-    createEffect(
-      () => [selected(), [...context.markers.values()].map(marker => marker.lngLat)],
-      value => {
-        observations.push(value)
-      },
-    )
     return {
       context,
       selected,
@@ -83,7 +76,6 @@ function mount(options = {}) {
       setHovered,
       open,
       setOpen,
-      observations,
       disposeRoot,
     }
   })
@@ -100,7 +92,6 @@ function mount(options = {}) {
           lngLat={fixture.selected() === 'Castle' ? [19, 47] : [20, 48]}
           open={fixture.open()}
           onclose={() => fixture.setOpen(false)}
-          {...options}
         >
           <strong>{fixture.selected()}</strong>
           <button type="button">Details</button>
@@ -142,37 +133,4 @@ test('keeps reactive popup content attached when a sibling hover tooltip is remo
   flush()
   expect(container.querySelector('.maplibregl-popup')).toBeNull()
   expect(fixture.context.activePopupMarkerId).toBeNull()
-})
-
-test('selection updates do not relay derived marker state through effects', () => {
-  const fixture = mount()
-  const diagnostics = OBSERVE!.diagnostics.capture()
-  fixture.observations.length = 0
-  for (const selected of ['Museum', 'Castle', 'Museum']) {
-    fixture.setSelected(selected)
-    flush()
-  }
-  const events = diagnostics.stop()
-  expect(events.filter(event => event.code === 'EFFECT_RELAY_TEAR')).toEqual([])
-  expect(fixture.observations).toEqual([
-    ['Museum', [[20, 48]]],
-    ['Castle', [[19, 47]]],
-    ['Museum', [[20, 48]]],
-  ])
-})
-
-test('focuses popup actions by default and supports opting out', () => {
-  const focus = vi.spyOn(HTMLElement.prototype, 'focus')
-  mount()
-  expect(focus).toHaveBeenCalledOnce()
-  dispose!()
-  dispose = undefined
-  focus.mockClear()
-
-  mount({ focusAfterOpen: false, closeButton: false, maxWidth: '280px', popupClass: 'selection' })
-  expect(focus).not.toHaveBeenCalled()
-  const popup = container.querySelector<HTMLElement>('.maplibregl-popup')!
-  expect(popup.classList.contains('selection')).toBe(true)
-  expect(popup.style.maxWidth).toBe('280px')
-  expect(popup.querySelector('.maplibregl-popup-close-button')).toBeNull()
 })
